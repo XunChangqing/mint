@@ -13,11 +13,11 @@ int cur_cpu = 0;
 void memory_test() {
   printf("memory test on cpu: %d\n", cur_cpu);
   uint64_t times = 0;
-
   uint64_t s = 0;
+
   // 所有可用存储段大跨度检查一遍，防止地址高位发生折叠
   for (int mr = 0; mr < IVY_DT_NUM_FREE_MEMORY; mr++) {
-    printf("write memory region start: 0x%x size: 0x%x\n",
+    printf("write memory region start: 0x%lx size: 0x%lx\n",
            ivy_dt_free_memories[mr].start, ivy_dt_free_memories[mr].size);
     for (uint64_t offset = ivy_dt_free_memories[mr].start;
          offset <
@@ -32,7 +32,7 @@ void memory_test() {
 
   s = 0;
   for (int mr = 0; mr < IVY_DT_NUM_FREE_MEMORY; mr++) {
-    printf("read and check memory region start: 0x%x size: 0x%x\n",
+    printf("read and check memory region start: 0x%lx size: 0x%lx\n",
            ivy_dt_free_memories[mr].start, ivy_dt_free_memories[mr].size);
     for (uint64_t offset = ivy_dt_free_memories[mr].start;
          offset <
@@ -105,12 +105,14 @@ void xmain() {
   }
   DSB();
 
-  printf("bringup test on cpu %d\n", this_cpu);
+  printf("10 bringup test on cpu %d\n", this_cpu);
 
   memory_test();
   timer_test();
 
   DSB();
   cur_cpu++;
+  // 在发出SEV之前必须 DSB，确保被唤醒的核能够看到 cur_cpu 的新值
+  DSB();
   SEV();
 }
