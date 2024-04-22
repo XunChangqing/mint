@@ -7,7 +7,8 @@ project(
   LANGUAGES C ASM
 )
 
-# set(ivy_DIR "/home/xuncq/stiwork/ivy/cmake")
+set(ivy_DIR "${CMAKE_SOURCE_DIR}/../ivy/cmake" CACHE STRING "ivy dir")
+message(INFO "${ivy_DIR}")
 # set(device_tree "/home/xuncq/stiwork/ivy_tmp_work/soc/virt_c2.dts")
 find_package(ivy)
 

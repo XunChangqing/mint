@@ -1,0 +1,3 @@
+[submodule "ivy"]
+	path = ivy
+	url = git@gitee.com:mythxcq/ivy.git

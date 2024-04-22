@@ -1,8 +1,9 @@
 ## 激励
-* 裸机 c
+* 裸机软仿
   * cache coherency
     * c (aarch64)
+* 裸机仿真器
+  * cache coherency
   * memory order 激励, litmus
-  * cache coherency with dma
-* os
-  * glex 通信 with cpu data access
+  * qspinlock
+目前没有可用 dma ，所以暂时不开发
