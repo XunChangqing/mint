@@ -2,3 +2,6 @@ commit.log
 build
 __pycache__
 dts
+*build
+gen
+CMakeUserPresets.json

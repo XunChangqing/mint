@@ -1,0 +1,257 @@
+// 1. 不考虑覆盖率的情况下，不需要使用 state 进行建模
+// 2. comp 的函数允许修改数据，通过 comp 函数来记录 data 的最新值，更加灵活和简单，规范中通过 core lib 进行读写和记录，本质上就是全局函数
+// 3. 不使用 home id，任意处理核进行访问，貌似效果是相同的
+
+const bit[16] TotalTimes = 2;
+
+const bit[16] NumCachelines = 4;
+
+// 允许顶层分配控制
+resource TopclR{}
+// 控制内部读写序
+resource CachelineR {}
+
+struct ClAccessS {
+  rand bit[8] offset;
+  rand bit[8] size;
+
+  constraint {
+    // 2**size
+    size <= 6;
+    offset < 64;
+    (~(8'hFF << size) & offset) == 0;
+  }
+}
+
+component CoherencyC {
+  pool TopclR top_cl_r_pool;
+  bind top_cl_r_pool *;
+
+  pool CachelineR cl_r_pool;
+  bind cl_r_pool *;
+
+  bit[16] cl_idx;
+  // 当前值
+  bit[512] cl_val;
+
+  // 使用新值，根据 size、offset 更新当前值
+  function void update_cl(bit[8] size, bit[8] offset, bit[512] new_val) {
+    bit[512] masked_ov;
+    bit[512] masked_nv;
+    bit[512] mask;
+    bit[64] byte_size;
+    bit[64] bits;
+    bit[64] l_offset;
+
+    byte_size = (64'b1 << size);
+    
+    // 防止移位时溢出
+    l_offset = offset;
+
+    mask = 0;
+    mask = ~mask;
+
+    bits = (byte_size << 3);
+    mask = mask << bits;
+    mask = ~mask;
+
+    mask = mask << (l_offset << 3);
+    masked_nv = new_val & mask;
+    
+    mask = ~mask;
+    masked_ov = cl_val & mask;
+
+    cl_val = masked_ov | masked_nv;
+  }
+
+  action Write {
+    lock CachelineR cl_lock;
+
+    rand bit[512] val;
+    rand ClAccessS cl_access;
+    rand executor_pkg::executor_claim_s core_claim;
+
+    exec pre_body {
+      // comp.update_cl_val(cl_access.offset, cl_access.size, val);
+    }
+
+    exec body sv = """
+      exec.Write({{comp.cl_idx}}, {{cl_access.offset}}, {{cl_access.size}}, {{comp.cl_val}});
+    """;
+
+    exec body c = """
+    write_cl(CL_{{comp.cl_idx}}, {{cl_access.offset}}, {{cl_access.size}},
+      {{comp.cl_val[63:0]}}ul,
+      {{comp.cl_val[127:64]}}ul,
+      {{comp.cl_val[191:128]}}ul,
+      {{comp.cl_val[255:192]}}ul,
+      {{comp.cl_val[319:256]}}ul,
+      {{comp.cl_val[383:320]}}ul,
+      {{comp.cl_val[447:384]}}ul,
+      {{comp.cl_val[511:448]}}ul
+    );
+    """;
+  }
+
+  action Read {
+    share CachelineR cl_share;
+    rand ClAccessS cl_access;
+    rand executor_pkg::executor_claim_s core_claim;
+
+    exec body sv = """
+      exec.ReadCheck({{comp.cl_idx}}, {{cl_access.offset}}, {{cl_access.size}}, {{comp.cl_val}});
+    """;
+
+    exec body c = """
+    read_check_cl(CL_{{comp.cl_idx}}, {{cl_access.offset}}, {{cl_access.size}},
+      {{comp.cl_val[63:0]}}ul,
+      {{comp.cl_val[127:64]}}ul,
+      {{comp.cl_val[191:128]}}ul,
+      {{comp.cl_val[255:192]}}ul,
+      {{comp.cl_val[319:256]}}ul,
+      {{comp.cl_val[383:320]}}ul,
+      {{comp.cl_val[447:384]}}ul,
+      {{comp.cl_val[511:448]}}ul
+    );
+    """;
+  }
+
+  // action DC {
+  //   rand executor_pkg::executor_claim_s core_claim;
+
+  //   exec body sv = """
+  //     exec.DC({{comp.cl_idx}});
+  //   """;
+
+  //   exec body c = """
+  //     dc_cl(CL_{{comp.cl_idx}});
+  //   """;
+  // }
+
+  // action DmaWrite {
+  //   exec body c = """
+  //   dma_write_cl(CL_{{comp.cl_idx}}, 
+  //     {{comp.cl_val[63:0]}}ul,
+  //     {{comp.cl_val[127:64]}}ul,
+  //     {{comp.cl_val[191:128]}}ul,
+  //     {{comp.cl_val[255:192]}}ul,
+  //     {{comp.cl_val[319:256]}}ul,
+  //     {{comp.cl_val[383:320]}}ul,
+  //     {{comp.cl_val[447:384]}}ul,
+  //     {{comp.cl_val[511:448]}}ul
+  //   );
+  //   """;
+  // }
+
+  // action DmaRead {
+  //   exec body c = """
+  //   dma_read_check_cl(CL_{{comp.cl_idx}}, 
+  //     {{comp.cl_val[63:0]}}ul,
+  //     {{comp.cl_val[127:64]}}ul,
+  //     {{comp.cl_val[191:128]}}ul,
+  //     {{comp.cl_val[255:192]}}ul,
+  //     {{comp.cl_val[319:256]}}ul,
+  //     {{comp.cl_val[383:320]}}ul,
+  //     {{comp.cl_val[447:384]}}ul,
+  //     {{comp.cl_val[511:448]}}ul
+  //   );
+  //   """;
+  // }
+
+  action TestCl {
+    // 确保并发的 test cl 绑定到不同的 cl 上
+    lock TopclR top_cl_r_lock;
+
+    rand bit[32] home_cpu_id;
+
+    rand bit[32] home_write_rp;
+    rand bit[32] home_read_rp;
+    rand bit[32] snp_write_rp;
+    rand bit[32] snp_read_rp;
+
+    constraint {
+      home_cpu_id < ivy_app_cfg::NUM_CPUS;
+      home_write_rp < 4;
+      home_read_rp < 4;
+      snp_write_rp < 4;
+      snp_read_rp < 4;
+    }
+
+    activity {
+      repeat(5){
+      schedule {
+          // 区分 home cpu 和 snp cpu，提高相同 cpu 连续操作的概率
+          // 本地cpu
+        // replicate(home_read_rp+1) {
+          do Read with {core_claim.id == this.home_cpu_id;}
+        // }
+        // replicate(home_write_rp+1) {
+          do Write with {core_claim.id == this.home_cpu_id;}
+        // }
+          // do DC with {core_claim.id == this.home_cpu_id;}
+          // 其他 cpu
+        // replicate(snp_read_rp+1) {
+          do Read with {core_claim.id != this.home_cpu_id;}
+        // }
+        // replicate(snp_write_rp+1) {
+          do Write with {core_claim.id != this.home_cpu_id;}
+        // }
+          // do DC with {core_claim.id != this.home_cpu_id;}
+          // dma 随便在哪个 cpu 上操作效果相同
+          // do DmaWrite;
+          // do DmaRead;
+      }
+      }
+    }
+  }
+}
+
+component Top {
+  executor_pkg::executor_group_c core_executor_grp;
+  executor_pkg::executor_c core_executor[ivy_app_cfg::NUM_CPUS];
+
+  CoherencyC coherency_c[NumCachelines];
+
+  exec init_down {
+    repeat(i: NumCachelines) {
+      coherency_c[i].cl_idx = i;
+    }
+
+    repeat(i: ivy_app_cfg::NUM_CPUS) {
+      core_executor_grp.add_executor(core_executor[i]);
+    }
+  }
+
+  action Sync{
+    exec body c = "";
+  }
+
+  action ParaTestCl {
+    rand bit[4] pr;
+    constraint {
+      pr  > 0;
+      pr <= NumCachelines;
+    }
+
+    activity {
+      parallel {
+        replicate (pr) {
+          do CoherencyC::TestCl;
+        }
+      }
+    }
+  }
+
+  action Entry {
+    exec header c = """
+    #include "mem_access.h"
+    """;
+
+    activity{
+      repeat(TotalTimes){
+        do Sync;
+        do ParaTestCl;
+      }
+    }
+  }
+}
