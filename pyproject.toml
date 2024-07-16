@@ -9,6 +9,9 @@ packages = [{ include = "mosei" }]
 
 [tool.poetry.dependencies]
 python = "^3.10"
+pyvsc = "^0.9.1.9920936192"
+numpy = "^2.0.0"
+datasize = "^1.0.0"
 
 [[tool.poetry.source]]
 name = "ivy_pub"
