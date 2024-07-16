@@ -159,12 +159,12 @@ reference = "ivy_pub"
 
 [[package]]
 name = "pyvsc"
-version = "0.9.1.9920936192"
+version = "0.9.1.9940712143"
 description = "pyvsc (Verification Stimulus and Coverage) is a Python package for generating randomized stimulus and defining and collecting functional coverage."
 optional = false
 python-versions = "*"
 files = [
-    {file = "pyvsc-0.9.1.9920936192-py2.py3-none-any.whl", hash = "sha256:c20b745f7a1d207ac6c5dad6ef1ac0677c7e9b391e58a1753ddb7fb66e2ffef3"},
+    {file = "pyvsc-0.9.1.9940712143-py2.py3-none-any.whl", hash = "sha256:17ee34bac9ccae9fdd99291098ff89e23b0f9ab5f1c719dea301d74323bb970d"},
 ]
 
 [package.dependencies]
