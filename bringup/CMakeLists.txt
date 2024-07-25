@@ -11,3 +11,5 @@ find_package(ivy)
 
 add_ivy_executable(bringup)
 target_sources(bringup PRIVATE main.c)
+
+set(CMAKE_C_FLAGS "-march=armv8.2-a")
