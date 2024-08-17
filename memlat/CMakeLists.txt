@@ -7,8 +7,6 @@ project(
   LANGUAGES C ASM
 )
 
-set(ivy_DIR "${CMAKE_SOURCE_DIR}/../ivy/cmake" CACHE PATH "ivy dir")
-# set(device_tree "/home/xuncq/stiwork/ivy_tmp_work/soc/virt_c2.dts")
 find_package(ivy)
 
 set(memlat_len "8MiB" CACHE STRING "test length")

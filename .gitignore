@@ -5,3 +5,4 @@ dts
 *build
 gen
 CMakeUserPresets.json
+.vscode

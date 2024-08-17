@@ -420,6 +420,7 @@ class CdnChiExecutor extends cdnChiUvmSequence;
             // retry automatically
             trans.CancelOnRetryAck == 0;
             trans.MemAttr == 4'hd;
+            trans.Excl == 0;
             })
       get_response(item, trans.get_transaction_id());
     end
@@ -431,8 +432,61 @@ class CdnChiExecutor extends cdnChiUvmSequence;
     DatalessRequest(DENALI_CHI_REQOPCODE_CleanUnique, "CleanUnique", addr);
   endtask
 
-  task MakeUnique(bit [63:0] addr);
-    DatalessRequest(DENALI_CHI_REQOPCODE_MakeUnique, "MakeUnique", addr);
+  task MakeUnique(bit [63:0] addr, bit [7:0] value[]);
+    denaliChiTransaction trans;
+    denaliChiTransaction rsp_trans;
+    uvm_sequence_item item;
+    denaliChiCacheLineStateT state;
+
+    reg be[];
+    reg cacheline_be[];
+    reg [63:0] aligned_addr;
+
+    bit non_secure = 0;
+    reg [7:0] read_data[];  //temp parameter but no use
+
+    be = new[64];
+    aligned_addr = addr;
+    aligned_addr[5:0] = 0;
+
+    `uvm_info($sformatf("MakeUnique@%d", this.id), $sformatf("addr: %x, value: %s", addr, StrByteArr(
+                                                         value)), UVM_NONE)
+
+    WaitAddrInUse(aligned_addr);
+    `uvm_info("", $sformatf("Wait for addr in use: %x, OK", aligned_addr), UVM_NONE);
+    // 要添加块地址，地址不同，但是同一个块的访问是冲突的
+    AddAddrInUse(aligned_addr);
+
+    agent.inst.cacheRead(aligned_addr, state, read_data, cacheline_be, non_secure);
+    if((state == DENALI_CHI_CACHELINESTATE_Invalid)||
+        (state == DENALI_CHI_CACHELINESTATE_SharedClean)||
+        (state == DENALI_CHI_CACHELINESTATE_SharedDirty))begin
+
+      `uvm_create_on(trans, agent.sequencer);
+
+      trans.randomize() with {
+        trans.ReqOpCode == DENALI_CHI_REQOPCODE_MakeUnique;
+        trans.Addr == aligned_addr;
+        trans.Size == DENALI_CHI_SIZE_FULLLINE;
+        trans.NonSecure == 0;
+        // retry automatically
+        trans.CancelOnRetryAck == 0;
+        trans.MemAttr == 4'hd;
+      };
+
+      `uvm_send(trans);
+      get_response(item, trans.get_transaction_id());
+      $cast(rsp_trans, item);
+    end
+
+    for (int i = 0; i < 64; i++) begin
+      cacheline_be[i] = 1;
+    end
+
+    state = DENALI_CHI_CACHELINESTATE_UniqueDirty;
+    agent.inst.cacheWrite(aligned_addr, state, value, cacheline_be, non_secure);
+
+    FreeAddrInUse(aligned_addr);
   endtask
 
   task Evict(bit [63:0] addr);
@@ -461,6 +515,7 @@ class CdnChiExecutor extends cdnChiUvmSequence;
     reg read_be[];
     reg [63:0] aligned_addr;
     reg non_secure = 0;
+    bit issue_req = 1;
 
     aligned_addr = addr;
     aligned_addr[5:0] = 0;
@@ -472,9 +527,15 @@ class CdnChiExecutor extends cdnChiUvmSequence;
     // 要添加块地址，地址不同，但是同一个块的访问是冲突的
     AddAddrInUse(aligned_addr);
 
-    // bit issue_req = 1;
 
     agent.inst.cacheRead(aligned_addr, state, cl_data_arr, read_be, non_secure);
+
+    if (opcode == DENALI_CHI_REQOPCODE_WriteCleanFull) begin
+      if (state == DENALI_CHI_CACHELINESTATE_UniqueClean) begin
+        `uvm_info($sformatf("%s@%d", name, this.id), "no need to WriteCleanFull", UVM_NONE);
+        issue_req = 0;
+      end
+    end
 
     // if (opcode == DENALI_CHI_REQOPCODE_Evict) begin
     //   if (state == DENALI_CHI_CACHELINESTATE_Invalid) begin
@@ -486,9 +547,9 @@ class CdnChiExecutor extends cdnChiUvmSequence;
     //   end
     // end
 
-    // if (issue_req) begin
-    `uvm_do_on_with(trans, agent.sequencer,
-                    {
+    if (issue_req) begin
+      `uvm_do_on_with(trans, agent.sequencer,
+                      {
             trans.ReqOpCode == opcode;
             trans.Addr == aligned_addr;
             trans.Size == DENALI_CHI_SIZE_FULLLINE;
@@ -497,8 +558,8 @@ class CdnChiExecutor extends cdnChiUvmSequence;
             trans.CancelOnRetryAck == 0;
             trans.MemAttr == 4'hd;
             })
-    get_response(item, trans.get_transaction_id());
-    // end
+      get_response(item, trans.get_transaction_id());
+    end
 
     FreeAddrInUse(aligned_addr);
   endtask
@@ -677,7 +738,7 @@ class CdnChiExecutor extends cdnChiUvmSequence;
 
     state = agent.inst.getCacheLineState(addr);
     if (state != DENALI_CHI_CACHELINESTATE_Invalid) begin
-      `uvm_warning(ops_name, "cacheline is not invalid");
+      `uvm_info(ops_name, "cacheline is not invalid", UVM_NONE);
       SafeEvictUnlock(addr);
     end
 
@@ -762,7 +823,7 @@ class CdnChiExecutor extends cdnChiUvmSequence;
 
     state = agent.inst.getCacheLineState(addr);
     if (state != DENALI_CHI_CACHELINESTATE_Invalid) begin
-      `uvm_warning(ops_name, "cacheline is not invalid");
+      `uvm_info(ops_name, "cacheline is not invalid", UVM_NONE);
       SafeEvictUnlock(addr);
     end
 
@@ -860,7 +921,7 @@ class CdnChiExecutor extends cdnChiUvmSequence;
 
     state = agent.inst.getCacheLineState(addr);
     if (state != DENALI_CHI_CACHELINESTATE_Invalid) begin
-      `uvm_warning(ops_name, "cacheline is not invalid");
+      `uvm_info(ops_name, "cacheline is not invalid", UVM_NONE);
       SafeEvictUnlock(addr);
     end
 
@@ -943,7 +1004,7 @@ class CdnChiExecutor extends cdnChiUvmSequence;
 
     state = agent.inst.getCacheLineState(addr);
     if (state != DENALI_CHI_CACHELINESTATE_Invalid) begin
-      `uvm_warning(ops_name, "cacheline is not invalid");
+      `uvm_info(ops_name, "cacheline is not invalid", UVM_NONE);
       SafeEvictUnlock(addr);
     end
 
@@ -1039,6 +1100,22 @@ class CdnChiExecutor extends cdnChiUvmSequence;
     agent.inst.cacheWrite(aligned_addr, state, value, cacheline_be, non_secure);
 
     FreeAddrInUse(aligned_addr);
+  endtask
+
+  task CheckShared(bit [63:0] addr, bit dirty);
+    denaliChiCacheLineStateT state;
+    string ops_name;
+
+    ops_name = $sformatf("CheckShared@%d", this.id);
+
+    `uvm_info(ops_name, $sformatf("addr: %x, dirty: %d", addr, dirty), UVM_NONE);
+
+    state = agent.inst.getCacheLineState(addr);
+    if (state == DENALI_CHI_CACHELINESTATE_SharedClean) begin
+      `uvm_info(ops_name, "cacheline is clean", UVM_NONE);
+    end else if (!dirty && state == DENALI_CHI_CACHELINESTATE_SharedDirty) begin
+      `uvm_info(ops_name, "cacheline is dirty", UVM_NONE);
+    end
   endtask
 
 endclass

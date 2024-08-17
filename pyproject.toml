@@ -5,8 +5,6 @@ description = ""
 authors = ["zuo qian <zuoqian@qq.com>"]
 readme = "README.md"
 
-packages = [{ include = "mosei" }]
-
 [tool.poetry.dependencies]
 python = "^3.10"
 pyvsc = "^0.9.1.9920936192"

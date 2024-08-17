@@ -165,7 +165,8 @@ class CleanUnique(RequestAction):
 
 class MakeUnique(RequestAction):
     def Body(self):
-        self.sv_src = f'exec.MakeUnique(64\'h{self.cl.addr:x});'
+        self.cl.value = RandomCacheValue()
+        self.sv_src = f'exec.MakeUnique(64\'h{self.cl.addr:x}, {self.cl.ValueSvStr()});'
 
 # class Evict(RequestAction): in SafeEvict
 #   def Body(self):
@@ -582,6 +583,25 @@ class InitReadUnique(Action):
         self.cl.value = RandomCacheValue()
         self.sv_src = f'exec.Modify(64\'h{self.cl.addr:x}, {self.cl.ValueSvStr()});'
 
+
+class CheckSharedClean(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Body(self):
+        self.executor_id = cl.home
+        self.sv_src = f'exec.CheckShared(64\'h{self.cl.addr:x}, 0);'
+
+
+class CheckSharedDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Body(self):
+        self.executor_id = cl.home
+        self.sv_src = f'exec.CheckShared(64\'h{self.cl.addr:x}, 1);'
 # snoop
 
 
@@ -662,36 +682,65 @@ class State(Enum):
     UniqueDirtyPartial = 5
     SharedClean = 6
     SharedDirty = 7
-    # ReadClean, ReadShared, ReadNotSharedDirty 结果不确定
-    # SharedOrUnique = 8
+    # 处理不确定情况时的综合状态
+    # SharedClean, UniqueClean
+    Clean = 8
+    # SharedClean, SharedDirty, UniqueClean, UniqueDirty
+    Valid = 9
+    # SharedClean, UniqueClean, UniqueDirty
+    NotSharedDirty = 10
+    # UniqueDirty, UniqueClean
+    Unique = 11
+    # SharedClean, SharedDirty
+    Shared = 12
 
-# @StateTransition(State.Invalid, State.Invalid)
-# class InvalidToInvalid(Action):
-#   def __init__(self, cl: Cacheline, name: str = None) -> None:
-#     super().__init__(name)
-#     self.cl = cl
-
-#   def Activity(self):
-#     Select(AtomicStore(self.cl))
-#     # Select(AtomicLoad(self.cl))
-#     # Select(AtomicCompare(self.cl))
-#     # Select(AtomicSwap(self.cl))
+# ReadClean: SharedClean, UniqueClean
+# ReadShared: SharedClean, SharedDirty, UniqueClean, UniqueDirty
+# ReadNotSharedDirty: SharedClean, UniqueClean, UniqueDirty
 
 
-@StateTransition(State.Invalid, State.SharedClean)
-class InvalidToSharedClean(Action):
+@StateTransition(State.Invalid, State.Clean)
+class InvalidToClean(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Select(ReadClean(self.cl),
-               ReadNotSharedDirty(self.cl),
-               ReadShared(self.cl))
+        Select(ReadClean(self.cl))
 
 
-@StateTransition(State.Invalid, State.UniqueClean)
-class InvalidToUniqueClean(Action):
+@StateTransition(State.Invalid, State.Valid)
+class InvalidToValid(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(ReadShared(self.cl))
+
+
+@StateTransition(State.Invalid, State.NotSharedDirty)
+class InvalidToNotSharedDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(ReadNotSharedDirty(self.cl))
+
+
+@StateTransition(State.Invalid, State.UniqueDirty)
+class InvalidToUniqueDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(MakeUnique(self.cl))
+
+
+@StateTransition(State.Invalid, State.Unique)
+class InvalidToUnique(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
@@ -758,8 +807,8 @@ class UniqueDirtyToUniqueClean(Action):
                SnpCleanShared(self.cl))
 
 
-@StateTransition(State.UniqueDirty, State.SharedClean)
-class UniqueDirtyToSharedClean(Action):
+@StateTransition(State.UniqueDirty, State.Shared)
+class UniqueDirtyToShared(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
@@ -768,11 +817,6 @@ class UniqueDirtyToSharedClean(Action):
         Select(SnpClean(self.cl),
                SnpShared(self.cl),
                SnpNotSharedDirty(self.cl))
-
-# class UniqueDirtyToSharedDirty(Action):
-#   def __init__(self, cl: Cacheline, name: str = None) -> None:
-#     super().__init__(name)
-#     self.cl = cl
 
 # 来自其他 rnf 的读请求
 # class SharedCleanToSharedClean(Action):
@@ -801,26 +845,250 @@ class SharedCleanToUniqueClean(Action):
         self.cl = cl
 
     def Activity(self):
-        Select(ReadUnique(self.cl),
-               CleanUnique(self.cl),
+        Select(CleanUnique(self.cl))
+
+
+@StateTransition(State.SharedClean, State.UniqueDirty)
+class SharedCleanToUniqueDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(MakeUnique(self.cl))
+
+
+@StateTransition(State.SharedClean, State.Unique)
+class SharedCleanToUnique(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(ReadUnique(self.cl))
+
+# 貌似没有办法保证到达 SharedDirty，除非 executor 中提供一个函数
+# 必须要求到达 SharedDirty，否则报错或是警告，例如从 UniqueDirty
+# 到 SharedDirty
+
+
+@StateTransition(State.SharedDirty, State.Invalid)
+class SharedDirtyToInvalid(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(SafeEvict(self.cl),
+               CleanInvalid(self.cl),
+               SnpUnique(self.cl),
+               SnpCleanInvalid(self.cl))
+
+
+@StateTransition(State.SharedDirty, State.UniqueDirty)
+class SharedDirtyToUniqueDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(CleanUnique(self.cl),
                MakeUnique(self.cl))
 
-# 其他 rnf 读
-# class SharedDirtyToSharedDirty(Action):
-#   def __init__(self, name: str = None) -> None:
-#     super().__init__(name)
+# possible transition
 
-# class SharedDirtyToInvalid(Action):
-#   def __init__(self, name: str = None) -> None:
-#     super().__init__(name)
 
-# class SharedDirtyToUniqueDirty(Action):
-#   def __init__(self, name: str = None) -> None:
-#     super().__init__(name)
+@StateTransition(State.SharedDirty, State.SharedClean)
+class SharedDirtyToSharedClean(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
 
-# class SharedDirtyToSharedClean(Action):
-#   def __init__(self, name: str = None) -> None:
-#     super().__init__(name)
+    def Activity(self):
+        Select(SnpClean(self.cl),
+               SnpShared(self.cl),
+               SnpNotSharedDirty(self.cl))
+
+
+@StateTransition(State.Clean, State.Invalid)
+class CleanToInvalid(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(SafeEvict(self.cl),
+               CleanInvalid(self.cl),
+               SnpUnique(self.cl),
+               SnpCleanInvalid(self.cl))
+
+
+@StateTransition(State.Clean, State.Unique)
+class CleanToUnique(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(ReadUnique(self.cl),
+               CleanUnique(self.cl))
+
+
+@StateTransition(State.Clean, State.UniqueDirty)
+class CleanToUniqueDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(MakeUnique(self.cl))
+
+
+@StateTransition(State.Clean, State.SharedClean)
+class CleanToSharedClean(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(SnpClean(self.cl),
+               SnpShared(self.cl),
+               SnpNotSharedDirty(self.cl))
+
+
+@StateTransition(State.Valid, State.Invalid)
+class ValidToUnique(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(SafeEvict(self.cl),
+               CleanInvalid(self.cl),
+               SnpUnique(self.cl),
+               SnpCleanInvalid(self.cl))
+
+
+@StateTransition(State.Valid, State.Unique)
+class ValidToUnique(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(ReadUnique(self.cl),
+               CleanUnique(self.cl))
+
+
+@StateTransition(State.Valid, State.UniqueDirty)
+class ValidToUniqueDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(MakeUnique(self.cl))
+
+
+@StateTransition(State.Valid, State.Shared)
+class ValidToShared(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        # TOFIX
+        # 如何判断不做任何操作？
+        # 如果是 unique 需要 snoop 才能进入 shared
+        Select(SnpClean(self.cl),
+               SnpShared(self.cl),
+               SnpNotSharedDirty(self.cl))
+
+
+@StateTransition(State.NotSharedDirty, State.Invalid)
+class NotSharedDirtyToInvalid(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(SafeEvict(self.cl),
+               CleanInvalid(self.cl),
+               SnpUnique(self.cl),
+               SnpCleanInvalid(self.cl))
+
+
+@StateTransition(State.NotSharedDirty, State.Unique)
+class NotSharedDirtyToUnique(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(ReadUnique(self.cl),
+               CleanUnique(self.cl))
+
+
+@StateTransition(State.NotSharedDirty, State.UniqueDirty)
+class NotSharedDirtyToUniqueDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(MakeUnique(self.cl))
+
+
+@StateTransition(State.NotSharedDirty, State.SharedClean)
+class NotSharedDirtyToSharedClean(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(SnpClean(self.cl),
+               SnpShared(self.cl),
+               SnpNotSharedDirty(self.cl))
+
+
+@StateTransition(State.Unique, State.UniqueDirty)
+class UniqueToUniqueDirty(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(Modify(self.cl))
+
+
+@StateTransition(State.Unique, State.UniqueClean)
+class UniqueToUniqueClean(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(WriteCleanFull(self.cl))
+
+
+@StateTransition(State.Shared, State.SharedClean)
+class SharedToSharedClean(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(CheckSharedClean(self.cl))
+
+
+@StateTransition(State.Shared, State.SharedDirty)
+class SharedToSharedClean(Action):
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
+        super().__init__(name)
+        self.cl = cl
+
+    def Activity(self):
+        Select(CheckSharedDirty(self.cl))
 
 
 class StressCacheline(Action):
@@ -897,8 +1165,8 @@ def Main():
     MAX_NUM_PARALLEL = NUM_EXECUTORS * 64
     MIN_NUM_PARALLEL = NUM_EXECUTORS * 16
 
-    MIN_NUM_PARALLEL = 1
-    MAX_NUM_PARALLEL = 1
+    # MIN_NUM_PARALLEL = 4
+    # MAX_NUM_PARALLEL = 8
 
     # with (TypeOverride(mosei.ReadShared, ReadUniqueUVM),
     #       TypeOverride(mosei.ReadUnique, ReadUniqueUVM),
