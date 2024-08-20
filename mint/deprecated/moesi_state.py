@@ -43,13 +43,7 @@ class Cacheline:
     def __init__(self) -> None:
         self.home: int = None
         self.addr: int = None
-        self.rec_limit = RandomNumStateChange()
         self.value: bytearray = None
-
-    def RecLimt(self) -> bool:
-        self.rec_limit-=1
-        logger.debug(f'rec limt {self.rec_limit}')
-        return self.rec_limit <= 0
 
     def ValueSvStr(self) -> str:
         ss = [f'8\'h{b:x}' for b in self.value]
@@ -221,420 +215,303 @@ class LocalCleanInvalidate(Action):
     def Activity(self):
         Do(CleanInvalidate(self.cl, self.name))
 
+# @StateTransition(State.Init, State.Modified)
+# class InitToModified(Action):
+#     def __init__(self, cl: Cacheline, name: str = None) -> None:
+#         super().__init__(name)
+#         self.cl = cl
 
-# state transitions
+#     def Activity(self):
+#         Do(LocalWrite(self.cl))
 
-class ModifiedFromInit(Action):
+
+@StateTransition(State.Invalid, State.Exclusive)
+class InvalidToExclusive(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        logger.debug(f'{self.GetClassName()}')
-        Do(Init(self.cl))
-
-
-class ExclusiveFromInvalid(Action):
-    def __init__(self, cl: Cacheline, name: str = None) -> None:
-        super().__init__(name)
-        self.cl = cl
-
-    def Activity(self):
-        Do(Invalid(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class ExclusiveFromExclusive(Action):
+@StateTransition(State.Exclusive, State.Exclusive)
+class ExclusiveToExclusive(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Exclusive(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class ModifiedFromExclusive(Action):
+@StateTransition(State.Exclusive, State.Modified)
+class ExclusiveToModified(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Exclusive(self.cl))
         Do(LocalWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class ModifiedFromInvalid(Action):
+@StateTransition(State.Invalid, State.Modified)
+class InvalidToModified(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Invalid(self.cl))
         Do(LocalWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class ModifiedFromOwned(Action):
+@StateTransition(State.Owned, State.Modified)
+class OwnedToModified(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Owned(self.cl))
         Do(LocalWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class ModifiedFromOwned(Action):
+@StateTransition(State.Shared, State.Modified)
+class OwnedToModified(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Owned(self.cl))
         Do(LocalWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class ModifiedFromModifiedRead(Action):
+@StateTransition(State.Modified, State.Modified)
+class ModifiedToModifiedRead(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Modified(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class ModifiedFromModifiedWrite(Action):
+@StateTransition(State.Modified, State.Modified)
+class ModifiedToModifiedWrite(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Modified(self.cl))
         Do(LocalWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
-class OwnedFromModifed(Action):
+@StateTransition(State.Modified, State.Owned)
+class ModifiedToOwned(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Modified(self.cl))
         Do(SnoopRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
-
-class ExclusiveFromModifed(Action):
+@StateTransition(State.Modified, State.Exclusive)
+class ModifiedToExclusive(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Modified(self.cl))
         Select(
             LocalClean(self.cl),
             CleanDomain(self.cl)
         )
-        logger.debug(f'{self.GetClassName()}')
 
 
-class OwnedFromOwnedRead(Action):
+@StateTransition(State.Owned, State.Owned)
+class OwnedToOwnedRead(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Owned(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class OwnedFromOwnedSnoopRead(Action):
+@StateTransition(State.Owned, State.Owned)
+class OwnedToOwnedSnoopRead(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Owned(self.cl))
         Do(SnoopRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class SharedFromInvalidShared(Action):
+@StateTransition(State.Invalid, State.Shared)
+class InvalidToSharedShared(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Invalid(self.cl))
         Do(SnoopRead(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class SharedFromInvalidModified(Action):
+@StateTransition(State.Invalid, State.Shared)
+class InvalidToSharedModified(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Invalid(self.cl))
         Do(SnoopWrite(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class SharedFromExclusiveModified(Action):
+@StateTransition(State.Exclusive, State.Shared)
+class ExclusiveToSharedModified(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Exclusive(self.cl))
         Do(SnoopRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class SharedFromSharedRead(Action):
+@StateTransition(State.Shared, State.Shared)
+class SharedToSharedRead(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Shared(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class SharedFromSharedSnoopRead(Action):
+@StateTransition(State.Shared, State.Shared)
+class SharedToSharedSnoopRead(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Shared(self.cl))
         Do(SnoopRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class SharedFromInvalidModified(Action):
+@StateTransition(State.Invalid, State.Shared)
+class InvalidToSharedModified(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Invalid(self.cl))
         Do(SnoopWrite(self.cl))
         Do(LocalRead(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromExclusive(Action):
+@StateTransition(State.Exclusive, State.Invalid)
+class ExclusiveToInvalid(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Exclusive(self.cl))
         Do(SnoopWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromModified(Action):
+@StateTransition(State.Modified, State.Invalid)
+class ModifiedToInvalid(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Modified(self.cl))
         Do(SnoopWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromOwned(Action):
+@StateTransition(State.Owned, State.Invalid)
+class OwnedToInvalid(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Owned(self.cl))
         Do(SnoopWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromShared(Action):
+@StateTransition(State.Shared, State.Invalid)
+class SharedToInvalid(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Shared(self.cl))
         Do(SnoopWrite(self.cl))
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromInvalidWBINVD(Action):
+@StateTransition(State.Invalid, State.Invalid)
+class InvalidToInvalidWBINVD(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Invalid(self.cl))
         Select(
             LocalClean(self.cl),
             LocalCleanInvalidate(self.cl),
         )
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromExclusiveWBINVD(Action):
+@StateTransition(State.Exclusive, State.Invalid)
+class ExclusiveToInvalidWBINVD(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Exclusive(self.cl))
         Select(
             LocalCleanInvalidate(self.cl),
             CleanInvalidateDomain(self.cl),
-        )
-        logger.debug(f'{self.GetClassName()}')
+            )
 
 
-class InvalidFromModifiedWBINVD(Action):
+@StateTransition(State.Modified, State.Invalid)
+class ModifiedToInvalidWBINVD(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Modified(self.cl))
         Select(
             LocalCleanInvalidate(self.cl),
             CleanInvalidateDomain(self.cl)
         )
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromOwnedWBINVD(Action):
+@StateTransition(State.Owned, State.Invalid)
+class OwnedToInvalidWBINVD(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Owned(self.cl))
         Select(
             LocalCleanInvalidate(self.cl),
             CleanInvalidateDomain(self.cl),
         )
-        logger.debug(f'{self.GetClassName()}')
 
 
-class InvalidFromSharedWBINVD(Action):
+@StateTransition(State.Shared, State.Invalid)
+class SharedToInvalidWBINVD(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
-        Do(Shared(self.cl))
         Select(
             LocalCleanInvalidate(self.cl),
             CleanInvalidateDomain(self.cl)
         )
-        logger.debug(f'{self.GetClassName()}')
-
-# states
-class Modified(Action):
-    def __init__(self, cl: Cacheline, name: str = None) -> None:
-        super().__init__(name)
-        self.cl = cl
-    
-    def Activity(self):
-        if self.cl.RecLimt():
-            Do(ModifiedFromInit(self.cl))
-        else:
-            Select(
-                ModifiedFromOwned(self.cl),
-                ModifiedFromExclusive(self.cl),
-                ModifiedFromInvalid(self.cl),
-                ModifiedFromModifiedRead(self.cl),
-                ModifiedFromModifiedWrite(self.cl),
-            )
-
-class Owned(Action):
-    def __init__(self, cl: Cacheline, name: str = None) -> None:
-        super().__init__(name)
-        self.cl = cl
-    
-    def Activity(self):
-        if self.cl.RecLimt():
-            Do(OwnedFromModifed(self.cl))
-        else:
-            Select(
-                OwnedFromModifed(self.cl),
-                OwnedFromOwnedRead(self.cl),
-                OwnedFromOwnedSnoopRead(self.cl),
-            )
-
-class Exclusive(Action):
-    def __init__(self, cl: Cacheline, name: str = None) -> None:
-        super().__init__(name)
-        self.cl = cl
-    
-    def Activity(self):
-        if self.cl.RecLimt():
-            Do(ExclusiveFromModifed(self.cl))
-        else:
-            Select(
-                ExclusiveFromExclusive(self.cl),
-                ExclusiveFromInvalid(self.cl),
-                ExclusiveFromModifed(self.cl),
-            )
-
-class Shared(Action):
-    def __init__(self, cl: Cacheline, name: str = None) -> None:
-        super().__init__(name)
-        self.cl = cl
-    
-    def Activity(self):
-        if self.cl.RecLimt():
-            Do(SharedFromExclusiveModified(self.cl))
-        else:
-            Select(
-                SharedFromExclusiveModified(self.cl),
-                SharedFromInvalidModified(self.cl),
-                SharedFromInvalidShared(self.cl),
-                SharedFromSharedRead(self.cl),
-                SharedFromSharedSnoopRead(self.cl),
-            )
-
-class Invalid(Action):
-    def __init__(self, cl: Cacheline, name: str = None) -> None:
-        super().__init__(name)
-        self.cl = cl
-    
-    def Activity(self):
-        if self.cl.RecLimt():
-            Do(InvalidFromModified(self.cl))
-        else:
-            Select(
-                InvalidFromExclusive(self.cl),
-                InvalidFromExclusiveWBINVD(self.cl),
-                InvalidFromInvalidWBINVD(self.cl),
-                InvalidFromModified(self.cl),
-                InvalidFromModifiedWBINVD(self.cl),
-                InvalidFromOwned(self.cl),
-                InvalidFromOwnedWBINVD(self.cl),
-                InvalidFromShared(self.cl),
-                InvalidFromSharedWBINVD(self.cl),
-            )
 
 
 class StressCacheline(Action):
@@ -643,13 +520,22 @@ class StressCacheline(Action):
         self.cl = cl
 
     def Activity(self):
-        Select(
-            Modified(self.cl),
-            Owned(self.cl),
-            Exclusive(self.cl),
-            Shared(self.cl),
-            Invalid(self.cl)
-        )
+        # init as modified in order to check
+        init_act = Init(self.cl)
+        init_act.executor_id = self.cl.home
+        Do(init_act)
+
+        dest_state = random.choice([State.Invalid,
+                                    State.Shared,
+                                    State.Exclusive,
+                                    State.Modified,
+                                    State.Owned])
+        num_state_change = RandomNumStateChange()
+        # num_state_change = 2
+        acts = StateInfer(dest_state, num_state_change, State.Modified)
+        for act in acts:
+            Do(act(self.cl))
+
 
 class StressMultiCacheline(Action):
     def Activity(self):
@@ -684,6 +570,6 @@ class MoesiTest(Action):
 
     def Activity(self):
         for i in range(self.rpt_times):
-            logger.debug(f'iter: {i}')
+            logger.info(f'iter: {i}')
             Do(TargetSync())
             Do(StressMultiCacheline())
