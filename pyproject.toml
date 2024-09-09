@@ -5,11 +5,19 @@ description = ""
 authors = ["zuo qian <zuoqian@qq.com>"]
 readme = "README.md"
 
+packages = [
+    {include = "ivy"},
+    {include = "purslane"},
+    {include = "mint"}
+]
+
 [tool.poetry.dependencies]
 python = "^3.10"
 pyvsc = "^0.9.1.9920936192"
 numpy = "^2.0.0"
 datasize = "^1.0.0"
+pydevicetree = "^0.0.13"
+dataclasses-json = "^0.6.3"
 
 [[tool.poetry.source]]
 name = "ivy_pub"
@@ -23,3 +31,9 @@ priority = "explicit"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+ivy = 'ivy.cmd.cli:Main'
+ivy_app_gen = 'ivy.cmd.app:Main'
+ivy_memfile_gen = 'ivy.cmd.memfile:Main'
+ivy_image_gen = 'ivy.cmd.image:Main'

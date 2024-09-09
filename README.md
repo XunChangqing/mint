@@ -36,26 +36,9 @@
   export PATH=~/poetry_venv/bin:$PATH 
 ```
   
-## 3. 安装依赖
-### clone仓库
-整个环境需要三个工具:`ivy`、`mint`和`purslane`,需要从git仓库中clone下来
-* 内网用户可以直接从gitlab上clone
-```
-  $ mkdir sti_wd
-  $ cd sti_wd
-  $ git clone git@202.197.164.156:xuncq/ivy.git
-  $ git clone git@202.197.164.156:xuncq/purslane.git
-  $ git clone git@202.197.164.156:xuncq/mint.git
-```  
-
-* 外网下可以从gitee上clone
-```
-  $ git clone git@gitee地址:ivy.git
-  $ git clone git@gitee地址:purslane.git
-  $ git clone git@gitee地址:mint.git
-```
+## 3. 安装
 ### 配置pyproject.toml
-在每个目录下都会有`pyproject.toml`，poetry使用pyproject.toml来定义项目的配置和依赖信息，通过pyproject.toml，用户可以指定`项目依赖`、`Python版本`、`项目元数据`等信息。   
+poetry使用pyproject.toml来定义项目的配置和依赖信息，通过pyproject.toml，用户可以指定`项目依赖`、`Python版本`、`项目元数据`等信息。   
 
 * 如果是在内网使用的的话，需要在pyproject.toml配置：
 ```
@@ -70,18 +53,14 @@ url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 ```
 
 ### 安装工具所需依赖
-* 在`ivy_tools`下创建虚环境并激活
-```
-  $ python -m venv ivy_venv
-  $ source ivy_vent/bin/activate
-```
-* 安装自身及所需依赖
+* 为mint建立独立虚环境
 ```bash
-  $ cd ivy
-  $ poetry install
-  $ cd ../purslane
-  $ poetry install
-  $ cd ../mint
+  $ python -m venv mint_venv
+  $ source mint_venv/bin/activate
+```
+* 安装自身及所需依赖到虚环境中
+```bash
+  $ cd <path/to/mint>
   $ poetry install
 ``` 
 
