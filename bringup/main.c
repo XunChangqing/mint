@@ -2,6 +2,7 @@
 #include "halt_code.h"
 #include "ivy_cfg.h"
 #include "ivy_dt.h"
+#include "pattern.h"
 #include "print.h"
 #include "xrt.h"
 
@@ -13,6 +14,8 @@ int cur_cpu = 0;
 void memory_test() {
   printf("memory test on cpu: %d\n", cur_cpu);
   uint64_t times = 0;
+  uint64_t pattern_offset = 0;
+  uint64_t pattern = 0;
   uint64_t s = 0;
 
   // 所有可用存储段大跨度检查一遍，防止地址高位发生折叠
@@ -24,13 +27,16 @@ void memory_test() {
          ivy_dt_free_memories[mr].start + ivy_dt_free_memories[mr].size;
          offset += Stride) {
       uint64_t *p = (uint64_t *)offset;
-      *p = s;
-      s += 0x0001000100010001ul;
+      pattern = pattern_arr[pattern_offset];
+      pattern_offset += 1;
+      *p = pattern;
       times++;
+      // printf("pattern written: %lx\n", pattern);
     }
   }
 
-  s = 0;
+  // s = 0;
+  pattern_offset = 0;
   for (int mr = 0; mr < IVY_DT_NUM_FREE_MEMORY; mr++) {
     printf("read and check memory region start: 0x%lx size: 0x%lx\n",
            ivy_dt_free_memories[mr].start, ivy_dt_free_memories[mr].size);
@@ -39,13 +45,15 @@ void memory_test() {
          ivy_dt_free_memories[mr].start + ivy_dt_free_memories[mr].size;
          offset += Stride) {
       uint64_t *p = (uint64_t *)offset;
-      if (*p != s) {
+      pattern = pattern_arr[pattern_offset];
+      pattern_offset += 1;
+      if (*p != pattern) {
         printf("large stride memory_test failed on cpu: %d\n", cur_cpu);
         printf("address 0x%lx, value written in 0x%lx, value read out 0x%lx\n",
-               offset, s, *p);
+               offset, pattern, *p);
         xrt_exit(1);
       }
-      s += 0x0001000100010001ul;
+      // s += 0x0001000100010001ul;
       times++;
     }
   }
