@@ -288,8 +288,15 @@ class App:
         #ifndef __ASSEMBLY__
         #ifndef __LINKAGE__
         #include <stdint.h>
-        // 设备树中cpu信息
+        // 设备树中 cpu id 信息
         extern uint64_t ivy_dt_cpu_id_map[IVY_DT_NR_CPUS];
+
+        // 设备数中 cpu 信息
+        typedef struct dt_cpu {
+          uint64_t id;
+          uint64_t numa_id;
+        } dt_cpu_t;
+        extern dt_cpu_t ivy_dt_cpus[IVY_DT_NR_CPUS];
 
         // 设备树中存储信息
         typedef struct dt_memory {
@@ -314,6 +321,11 @@ class App:
       # print(", ".join(cid_str))
       f.write("uint64_t ivy_dt_cpu_id_map[{0}] = {{{1}}};\n".format(
         self.nr_cpus, ", ".join(cid_str)))
+      
+      f.write('dt_cpu_t ivy_dt_cpus[IVY_DT_NR_CPUS] = {\n')
+      for cpu in self._dt.cpus:
+        f.write(f'{{.id = 0x{cpu.id:x}, .numa_id = 0x{cpu.nid:x}}},\n')
+      f.write('};\n')
       
       f.write('dt_memory_t ivy_dt_memories[IVY_DT_NUM_MEMORY] = {\n')
       for mem in self._dt.memories:

@@ -15,8 +15,14 @@ set(repeat_times "4" CACHE STRING "repeat times")
 add_ivy_executable(aarch64_moesi)
 target_sources(aarch64_moesi PRIVATE main.c aarch64_moesi.c)
 
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  set(purslane_debug "--debug")
+else()
+  set(purslane_debug)
+endif()
+
 add_custom_command(
   OUTPUT aarch64_moesi.c
-  COMMAND PYTHONPATH=${CMAKE_BINARY_DIR} python ${CMAKE_CURRENT_SOURCE_DIR}/aarch64_moesi.py --num_repeat_times ${repeat_times} --soc_output aarch64_moesi.c --soc_cooperative --debug
+  COMMAND PYTHONPATH=${CMAKE_BINARY_DIR} python ${CMAKE_CURRENT_SOURCE_DIR}/aarch64_moesi.py --num_repeat_times ${repeat_times} --soc_output aarch64_moesi.c --soc_cooperative ${purslane_debug}
   DEPENDS aarch64_moesi.py
 )
