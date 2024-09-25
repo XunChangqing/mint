@@ -1,5 +1,4 @@
-# author: zuoqian
-# Copyright 2024. All rights reserved.
+# Copyright (C) 2024 zuoqian
 
 import argparse
 import typing
