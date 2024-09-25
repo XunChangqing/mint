@@ -53,7 +53,7 @@ class MemBlockType:
             self.regions.pop(ridx)
             self.regions.pop(ridx)
             self.regions.insert(ridx, MemBlockRegion(
-                rthis.base, rthis.size+rnext.size, None))
+                rthis.base, rthis.size+rnext.size, rthis.nid))
             #    assert(rthis.base + rthis.size <= rnext.base)
 
     def RemoveRegion(self, r):

@@ -81,16 +81,24 @@ def device_populate(dts: str) -> DeviceTree:
         if nt is None or nt != 'cpu':
             continue
 
+        nid = node.get_field('numa-node-id')
+        if nid is None:
+            nid  = 0
+
         regs = node.get_reg()
         assert(len(regs) == 1)
-        print('cpu, id {:x}'.format(regs[0][0]))
-        ret_dt.cpus.append(Cpu(regs[0][0]))
+        print('cpu, id {:x} numa {:x}'.format(regs[0][0], nid))
+        ret_dt.cpus.append(Cpu(regs[0][0], nid))
 
     # 获取所有可用存储空间
     for node in dt.child_nodes():
         nt = node.get_field('device_type')
         if nt is None or nt != 'memory':
             continue
+
+        nid = node.get_field('numa-node-id')
+        if nid is None:
+            nid = 0
 
         sec_status = node.get_field('secure-status')
         if sec_status is not None:
@@ -102,8 +110,8 @@ def device_populate(dts: str) -> DeviceTree:
         
         regs = node.get_reg()
         for reg in regs:
-            print('memory 0x{:x} 0x{:x}'.format(reg[0], reg[1]))
-            ret_dt.memories.append(Memory(reg[0], reg[1]))
+            print('memory 0x{:x} 0x{:x} 0x{:x}'.format(reg[0], reg[1], nid))
+            ret_dt.memories.append(Memory(reg[0], reg[1], nid))
 
     # 根节点也作为simple bus处理
     # 暂时没有层次化处理，而是整个子树通过compatible匹配
