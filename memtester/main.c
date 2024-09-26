@@ -36,6 +36,8 @@ void memory_test() {
   size_t pagesize, wantraw, wantmb, wantbytes, wantbytes_orig, bufsize, halflen,
       count;
 
+  cpu_done[cur_cpu] = true;
+
   cur_cpu_numa_id = ivy_dt_cpus[cur_cpu].numa_id;
 
 #ifdef ONE_CORE_PER_NUMA
