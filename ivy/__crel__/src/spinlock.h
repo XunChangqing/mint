@@ -18,6 +18,10 @@ typedef struct spinlock {
 void spin_lock(spinlock_t *lock);
 void spin_unlock(spinlock_t *lock);
 
+// typedef struct barrier {
+//   volatile uint32_t barrier;
+// } barrier_t;
+
 #else
 
 /* Spin lock definitions for use in assembly */

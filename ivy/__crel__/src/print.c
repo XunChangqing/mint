@@ -32,7 +32,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "print.h"
-
+#include "spinlock.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -442,11 +442,15 @@ static size_t _ftoa(out_fct_type out, char* buffer, size_t idx, size_t maxlen,
 }
 #endif  // PRINTF_SUPPORT_FLOAT
 
+static struct spinlock print_lck = {.lock = 0};
+
 // internal vsnprintf
 static int _vsnprintf(out_fct_type out, char* buffer, const size_t maxlen,
                       const char* format, va_list va) {
   unsigned int flags, width, precision, n;
   size_t idx = 0U;
+
+  spin_lock(&print_lck);
 
   if (!buffer) {
     // use null output function
@@ -745,6 +749,8 @@ static int _vsnprintf(out_fct_type out, char* buffer, const size_t maxlen,
 
   // termination
   out((char)0, buffer, idx < maxlen ? idx : maxlen - 1U, maxlen);
+
+  spin_unlock(&print_lck);
 
   // return written chars without terminating \0
   return (int)idx;

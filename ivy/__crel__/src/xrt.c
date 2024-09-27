@@ -14,7 +14,7 @@
 #include "print.h"
 #include "spinlock.h"
 
-spinlock_t exit_spin_lock;
+struct spinlock exit_spin_lock = {.lock = 0};
 
 void _error_halt(uint64_t halt_code);
 // 直接当前核停止，不会参与end barrier，导致不能结束，不会输出 $PASSED$
