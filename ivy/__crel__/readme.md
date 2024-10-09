@@ -1,0 +1,1 @@
+aarch64, gcc, 默认 data model lp64

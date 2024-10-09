@@ -14,7 +14,7 @@
 
 // Copyright (C) 2024 zuoqian
 
-#include <limits.h>
+#include <linux/limits.h>
 
 #define rand32() ((unsigned int) rand() | ( (unsigned int) rand() << 16))
 

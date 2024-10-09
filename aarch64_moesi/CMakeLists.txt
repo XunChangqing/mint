@@ -21,8 +21,10 @@ else()
   set(purslane_debug)
 endif()
 
+get_target_property(ivy_binary_dir ivy BINARY_DIR)
+
 add_custom_command(
   OUTPUT aarch64_moesi.c
-  COMMAND PYTHONPATH=${CMAKE_BINARY_DIR} python ${CMAKE_CURRENT_SOURCE_DIR}/aarch64_moesi.py --num_repeat_times ${repeat_times} --soc_output aarch64_moesi.c --soc_cooperative ${purslane_debug}
+  COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/aarch64_moesi.py --num_repeat_times ${repeat_times} --soc_output aarch64_moesi.c --soc_cooperative ${purslane_debug}
   DEPENDS aarch64_moesi.py
 )

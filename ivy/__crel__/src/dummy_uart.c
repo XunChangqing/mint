@@ -3,7 +3,7 @@
 
 #include "dummy_uart.h"
 
-void dummy_uart_putchar(uint64_t base, char c) {
-  volatile uint64_t *pb = (uint64_t *)base;
+void dummy_uart_putchar(unsigned long base, char c) {
+  volatile unsigned long *pb = (unsigned long *)base;
   *pb = c;
 }

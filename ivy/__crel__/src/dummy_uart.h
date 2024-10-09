@@ -3,7 +3,4 @@
 
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
-
-void dummy_uart_putchar(uint64_t, char);
+void dummy_uart_putchar(unsigned long, char);

@@ -1,6 +1,6 @@
-#include "xrt.h"
+#include <ivy/halt_code.h>
+#include <ivy/xrt.h>
 
-#include "halt_code.h"
 #include "ivy_dt.h"
 
 #ifdef IVY_DT_STDOUT_PL011
@@ -11,14 +11,15 @@
 #include "dummy_uart.h"
 #endif
 
-#include "print.h"
-#include "spinlock.h"
+#include <ivy/print.h>
+#include <ivy/sync.h>
+#include <linux/spinlock.h>
 
-struct spinlock exit_spin_lock = {.lock = 0};
+DEFINE_SPINLOCK(exit_spin_lock);
 
-void _error_halt(uint64_t halt_code);
+void _error_halt(unsigned long halt_code);
 // 直接当前核停止，不会参与end barrier，导致不能结束，不会输出 $PASSED$
-void xrt_exit(uint64_t halt_code) {
+void xrt_exit(unsigned long halt_code) {
   spin_lock(&exit_spin_lock);
   printf("halt code: %d\n", halt_code);
   printf("$FAILED$\n");

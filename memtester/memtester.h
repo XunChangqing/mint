@@ -16,9 +16,10 @@
 // Copyright (C) 2024 zuoqian
 
 // #include <sys/types.h>
+#include <stdint.h>
 
 /* extern declarations. */
-typedef long off_t;
+typedef ptrdiff_t off_t;
 
 extern int use_phys;
 extern off_t physaddrbase;

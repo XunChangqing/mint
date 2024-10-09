@@ -1,9 +1,12 @@
 #include "of_fdt.h"
 
-#include "halt_code.h"
+#include <ivy/halt_code.h>
+#include <ivy/xrt.h>
+
 #include "ivy_dt.h"
 #include "libfdt/libfdt.h"
-#include "xrt.h"
+
+#include <linux/types.h>
 
 #define OF_ROOT_NODE_ADDR_CELLS_DEFAULT 1
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1

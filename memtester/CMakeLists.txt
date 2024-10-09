@@ -16,5 +16,3 @@ target_sources(memtester PRIVATE main.c memtester.h sizes.h tests.c tests.h type
 #   OUTPUT pattern.h
 #   COMMAND PYTHONPATH=${CMAKE_BINARY_DIR} python ${CMAKE_CURRENT_SOURCE_DIR}/pattern.py
 # )
-
-set(CMAKE_C_FLAGS "-march=armv8.2-a")

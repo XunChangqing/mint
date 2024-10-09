@@ -15,16 +15,14 @@
 
 // Copyright (C) 2024 zuoqian
 
-// #include <sys/types.h>
-// #include <stdio.h>
-#include <limits.h>
-#include <stdlib.h>
+#include <linux/limits.h>
+
+#include <ivy/print.h>
+#include <ivy/xrt.h>
 
 #include "memtester.h"
-#include "print.h"
 #include "sizes.h"
 #include "types.h"
-#include "xrt.h"
 
 char progress[] = "-\\|/";
 #define PROGRESSLEN 4

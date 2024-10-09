@@ -10,49 +10,49 @@ enum {
 
 typedef volatile struct {
   union {
-    const uint32_t RBR;
-    uint32_t THR;  // WO
-    uint32_t DLL;  // LCR[7] = 1
+    const u32 RBR;
+    u32 THR;  // WO
+    u32 DLL;  // LCR[7] = 1
   };
   union {
-    uint32_t DLH;  // LCR[7] = 1
-    uint32_t IER;
+    u32 DLH;  // LCR[7] = 1
+    u32 IER;
   };
   union {
-    const uint32_t IIR;
-    uint32_t FCR;  // WO
+    const u32 IIR;
+    u32 FCR;  // WO
   };
-  uint32_t LCR;
-  uint32_t MCR;
-  const uint32_t LSR;
-  const uint32_t MSR;
-  uint32_t SCR;
-  uint32_t LPDLL;
-  uint32_t LPDLH;
-  const uint32_t reserved0[2];
+  u32 LCR;
+  u32 MCR;
+  const u32 LSR;
+  const u32 MSR;
+  u32 SCR;
+  u32 LPDLL;
+  u32 LPDLH;
+  const u32 reserved0[2];
   union {
-    const uint32_t SRBR[16];
-    uint32_t STHR[16];  // WO
+    const u32 SRBR[16];
+    u32 STHR[16];  // WO
   };
-  uint32_t FAR;
-  const uint32_t TFR;
-  uint32_t RFW;  // WO
-  const uint32_t USR;
-  const uint32_t TFL;
-  const uint32_t RFL;
-  uint32_t SRR;  // WO
-  uint32_t SRTS;
-  uint32_t SBCR;
-  uint32_t SDMAM;
-  uint32_t SFE;
-  uint32_t SRT;
-  uint32_t STET;
-  uint32_t HTX;
-  uint32_t DMASA;  // WO
-  const uint32_t reserved1[18];
-  const uint32_t CPR;
-  const uint32_t UCV;
-  const uint32_t CTR;
+  u32 FAR;
+  const u32 TFR;
+  u32 RFW;  // WO
+  const u32 USR;
+  const u32 TFL;
+  const u32 RFL;
+  u32 SRR;  // WO
+  u32 SRTS;
+  u32 SBCR;
+  u32 SDMAM;
+  u32 SFE;
+  u32 SRT;
+  u32 STET;
+  u32 HTX;
+  u32 DMASA;  // WO
+  const u32 reserved1[18];
+  const u32 CPR;
+  const u32 UCV;
+  const u32 CTR;
 } dw16550_t;
 
 /* FIFO Control Register bits */
@@ -97,9 +97,9 @@ typedef volatile struct {
 
 static int initialized = 0;
 
-void dw16550_init(uint64_t base, unsigned int baudrate) {
+void dw16550_init(unsigned long base, unsigned int baudrate) {
   dw16550_t* uart = (dw16550_t*)base;
-  uint16_t brd = (DW16550_CLOCK / (16 * baudrate));
+  u16 brd = (DW16550_CLOCK / (16 * baudrate));
 
   uart->LCR |= UARTLCR_DLAB;
   uart->DLL = (brd & 0xff);
@@ -115,7 +115,7 @@ void dw16550_init(uint64_t base, unsigned int baudrate) {
   initialized = 1;
 }
 
-void dw16550_putchar(uint64_t base, char c) {
+void dw16550_putchar(unsigned long base, char c) {
   dw16550_t* uart = (dw16550_t*)base;
   if (c == '\n') {
     while (!(uart->LSR & UARTLSR_THRE))

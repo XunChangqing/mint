@@ -1,7 +1,7 @@
 #include <stdint.h>
 
-#include "print.h"
-#include "xrt.h"
+#include <ivy/xrt.h>
+#include <ivy/print.h>
 
 void mango_core_main_func(uint64_t core_id);
 

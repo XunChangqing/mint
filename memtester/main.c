@@ -1,34 +1,39 @@
 // author : zuoqian
 // Copyright 2024. All rights reserved.
 
-#include <stddef.h>
+#include <ivy/halt_code.h>
+#include <ivy/print.h>
+#include <ivy/sync.h>
+#include <ivy/xrt.h>
+#include <linux/atomic.h>
+#include <linux/types.h>
+#include <stdint.h>
 
-#include "asm.h"
-#include "halt_code.h"
 #include "ivy_cfg.h"
 #include "ivy_dt.h"
-#include "print.h"
 #include "sizes.h"
 #include "tests.h"
 #include "types.h"
-#include "xrt.h"
 
 // 所有cpu依次进行memory test
-volatile int cur_cpu = 0;
+atomic_t cur_cpu = ATOMIC_INIT(0);
+
+// typedef unsigned long volatile ulv;
+typedef uintptr_t volatile upv;
 
 void memory_test() {
-  printf("memory test on cpu: %d\n", cur_cpu);
-  uint64_t idx = 0;
+  printf("memory test on cpu: %d\n", atomic_read(&cur_cpu));
+  uintptr_t idx = 0;
 
   for (int mr = 0; mr < IVY_DT_NUM_FREE_MEMORY; mr++) {
     printf("setting memory region start: 0x%lx size: 0x%lx\n",
            ivy_dt_free_memories[mr].start, ivy_dt_free_memories[mr].size);
     uint64_t mr_start = ivy_dt_free_memories[mr].start;
     uint64_t mr_size = ivy_dt_free_memories[mr].size;
-    ulv *buf = (ulv *)(mr_start);
+    upv *buf = (upv *)(mr_start);
 
-    for (size_t mr_j = 0; mr_j < mr_size / sizeof(uint64_t); mr_j++) {
-      *buf = ((idx) % 2) == 0 ? (ul)buf : ~((ul)buf);
+    for (size_t mr_j = 0; mr_j < mr_size / sizeof(uintptr_t); mr_j++) {
+      *buf = ((idx) % 2) == 0 ? (uintptr_t)buf : ~((uintptr_t)buf);
       idx++;
       buf++;
     }
@@ -41,13 +46,13 @@ void memory_test() {
            ivy_dt_free_memories[mr].start, ivy_dt_free_memories[mr].size);
     uint64_t mr_start = ivy_dt_free_memories[mr].start;
     uint64_t mr_size = ivy_dt_free_memories[mr].size;
-    ulv *buf = (ulv *)(mr_start);
+    upv *buf = (upv *)(mr_start);
 
     for (size_t mr_j = 0; mr_j < mr_size / sizeof(uint64_t); mr_j++) {
-      uint64_t exp_val = ((idx) % 2) == 0 ? (ul)buf : ~((ul)buf);
+      uintptr_t exp_val = ((idx) % 2) == 0 ? (uintptr_t)buf : ~((uintptr_t)buf);
       if (*buf != exp_val) {
-        printf("FAILURE: dut val 0x%08lx exp val 0x%08lx, address 0x%08lx\n",
-               *buf, exp_val, (ul)buf);
+        printf("FAILURE: dut val 0x%08x exp val 0x%08x, address 0x%08x\n", *buf,
+               exp_val, (uintptr_t)buf);
         xrt_exit(1);
       }
 
@@ -88,7 +93,7 @@ void test_range(uint64_t start, uint64_t size) {
   size_t pagesize, wantraw, wantmb, wantbytes, wantbytes_orig, bufsize, halflen,
       count;
 
-  cur_cpu_numa_id = ivy_dt_cpus[cur_cpu].numa_id;
+  cur_cpu_numa_id = ivy_dt_cpus[atomic_read(&cur_cpu)].numa_id;
 
   pagesize = IVY_CFG_PAGE_SIZE;
   pagesizemask = (ptrdiff_t) ~(pagesize - 1);
@@ -144,36 +149,24 @@ void para_local_memtest() {
   }
 }
 
-volatile uint64_t tmp_barrier = 0;
-
 void xmain() {
   int this_cpu = xrt_get_core_id();
   if (this_cpu == 0) {
     choose_local_cpu();
   }
 
-  while (cur_cpu != this_cpu) {
-    WFE();
+  while (atomic_read_acquire(&cur_cpu) != this_cpu) {
+    wfe();
   }
-  DSB();
 
   // 所有处理核依次测试所有存储
   memory_test();
 
-  DSB();
-  cur_cpu++;
+  atomic_fetch_add_release(1, &cur_cpu);
   // 在发出SEV之前必须 DSB，确保被唤醒的核能够看到 cur_cpu 的新值
-  DSB();
-  SEV();
+  sev();
 
-  DSB();
-  tmp_barrier += 1;
-  DSB();
-  SEV();
-
-  while (tmp_barrier < IVY_DT_NR_CPUS) {
-    WFE();
-  }
+  cpu_barrier_wait();
 
   // 每个 numa 一个处理核大压力测试本 numa 内存储，使用 memtester 内方法
   para_local_memtest();

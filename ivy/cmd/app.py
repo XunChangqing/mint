@@ -286,22 +286,21 @@ class App:
         '''
         #ifndef __ASSEMBLY__
         #ifndef __LINKAGE__
-        #include <stdint.h>
         // 设备树中 cpu id 信息
-        extern uint64_t ivy_dt_cpu_id_map[IVY_DT_NR_CPUS];
+        extern unsigned long ivy_dt_cpu_id_map[IVY_DT_NR_CPUS];
 
         // 设备数中 cpu 信息
         typedef struct dt_cpu {
-          uint64_t id;
-          uint64_t numa_id;
+          unsigned long id;
+          unsigned long numa_id;
         } dt_cpu_t;
         extern dt_cpu_t ivy_dt_cpus[IVY_DT_NR_CPUS];
 
         // 设备树中存储信息
         typedef struct dt_memory {
-          uint64_t start;
-          uint64_t size;
-          uint64_t numa_id;
+          unsigned long start;
+          unsigned long size;
+          unsigned long numa_id;
         } dt_memory_t;
 
         extern dt_memory_t ivy_dt_memories[IVY_DT_NUM_MEMORY];
@@ -318,7 +317,7 @@ class App:
       # mpidr bit31 为 res1，即总是为1
       cid_str = ["{:#x}".format(cid.id) for cid in self._active_cores]
       # print(", ".join(cid_str))
-      f.write("uint64_t ivy_dt_cpu_id_map[{0}] = {{{1}}};\n".format(
+      f.write("unsigned long ivy_dt_cpu_id_map[{0}] = {{{1}}};\n".format(
         self.nr_cpus, ", ".join(cid_str)))
       
       f.write('dt_cpu_t ivy_dt_cpus[IVY_DT_NR_CPUS] = {\n')

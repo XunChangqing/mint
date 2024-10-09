@@ -2788,7 +2788,7 @@ class AArch64Moesi(Action):
     def __init__(self, npt: int, name: str = None) -> None:
         super().__init__(name)
         self.npt = npt
-        self.c_headers = ['#include "print.h"', '#include "xrt.h"']
+        self.c_headers = ['#include <ivy/print.h>', '#include <ivy/xrt.h>']
         self.c_decl = AARCH64_DECL
 
     def Activity(self) -> None:

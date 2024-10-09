@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
+#include <linux/types.h>
 
-void dw16550_init(uint64_t, unsigned int);
-void dw16550_putchar(uint64_t, char);
+void dw16550_init(unsigned long base_addr, unsigned int);
+void dw16550_putchar(unsigned long base_addr, char c);

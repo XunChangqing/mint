@@ -1,54 +1,23 @@
-#include "asm.h"
+#include <asm/barrier.h>
+#include <ivy/halt_code.h>
+#include <ivy/print.h>
+#include <ivy/sync.h>
+#include <ivy/xrt.h>
+#include <linux/psci.h>
+
 #include "dw16550.h"
-#include "halt_code.h"
 #include "ivy_cfg.h"
 #include "ivy_dt.h"
 #include "libfdt/libfdt.h"
 #include "of_fdt.h"
 #include "pl011.h"
-#include "print.h"
-#include "psci.h"
-#include "spinlock.h"
-#include "xrt.h"
-
-spinlock_t barrier_lck;
-volatile uint64_t _core_start_barrier = 0;
-volatile uint64_t _core_end_barrier = 0;
-
-void _start_barrier() {
-  uint64_t core_id = xrt_get_core_id();
-  spin_lock(&barrier_lck);
-  _core_start_barrier++;
-  spin_unlock(&barrier_lck);
-
-  // 在发出SEV之前必须 DSB，确保被唤醒的核能够看到 _core_start_barrier 的新值
-  DSB();
-  SEV();
-  while (_core_start_barrier < IVY_DT_NR_CPUS) {
-    WFE();
-  }
-}
-
-void _end_barrier() {
-  uint64_t core_id = xrt_get_core_id();
-  spin_lock(&barrier_lck);
-  _core_end_barrier++;
-  spin_unlock(&barrier_lck);
-
-  // 在发出SEV之前必须 DSB，确保被唤醒的核能够看到 _core_end_barrier 的新值
-  DSB();
-  SEV();
-  while (_core_end_barrier < IVY_DT_NR_CPUS) {
-    WFE();
-  }
-}
 
 void _halt();
 void _error_halt(uint64_t halt_code);
 void _secondary_entry();
 
 // head.S 将fdt地址存到该变量
-phys_addr_t fdt_pointer;
+uintptr_t fdt_pointer;
 
 // #define IVT_DT_UART_BARD_RATE (115200)
 // #define IVT_DT_UART_BARD_RATE (921600)
@@ -158,9 +127,9 @@ void primary_main() {
   // 唤醒除自己以外的从核
   bringup_secondary_cpus();
 
-  _start_barrier();
+  cpu_barrier_wait();
   xmain();
-  _end_barrier();
+  cpu_barrier_wait();
   // 输出结束发送标志符
   printf("$PASSED$\n");
   xrt_putchar(4);
@@ -168,8 +137,8 @@ void primary_main() {
 }
 
 void secondary_main() {
-  _start_barrier();
+  cpu_barrier_wait();
   xmain();
-  _end_barrier();
+  cpu_barrier_wait();
   _halt();
 }

@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <string.h>
+// #include <string.h>
 
 void *memchr(const void *src, int c, size_t count) {
   const unsigned char *s = src;
@@ -79,6 +79,12 @@ void *memset(void *dst, int val, size_t count) {
   return dst;
 }
 
+char *strchr(const char *p, int ch) {
+  for (; *p != (char)ch; ++p)
+    if (*p == '\0') return NULL;
+  return (char *)p;
+}
+
 char *strrchr(const char *s, int i) {
   const char *last = NULL;
   char c = i;
@@ -105,11 +111,6 @@ char *strcat(char *dest, const char *src) {
   return tmp;
 }
 
-char *strchr(const char *p, int ch) {
-  for (; *p != (char)ch; ++p)
-    if (*p == '\0') return NULL;
-  return (char *)p;
-}
 
 int strcmp(const char *s1, const char *s2) {
   unsigned char c1, c2;
