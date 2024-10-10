@@ -27,6 +27,7 @@ class Node:
         self.predecessors: typing.List[Node] = []
         self.successors: typing.List[Node] = []
         self.all_predecessors: typing.Dict[int, Node] = []
+        self.all_predecessor_hops: typing.Dict[int, int] = []
 
         # for traversing in topological order
         self.preds_left = 0
@@ -61,18 +62,22 @@ class Node:
             yield p
 
     # def AllPredecessors(self) -> typing.Generator[typing_extensions.Self, None, None]:
-    #   # need to copy, or the original list will be corrupted
+    #   # clone, otherwise the original list will be corrupted
     #   preds = self.predecessors[:]
     #   while len(preds) > 0:
     #     back = preds.pop()
     #     preds = preds + back.predecessors
-    #     logger.debug(f'all pred gen {preds} {back.name} {len(back.predecessors)}')
+    #     # logger.debug(f'all pred gen {preds} {back.name} {len(back.predecessors)}')
     #     yield back
 
     def UpdateAllPredecessors(self):
         self.all_predecessors = {node.sn: node for node in self.predecessors}
         for pred in self.predecessors:
             self.all_predecessors.update(pred.all_predecessors)
+
+        # self.all_predecessor_hops = {node.sn:1 for node in self.predecessors}
+        # for pred in self.predecessors:
+        #     pass
 
     def NumPredecessors(self) -> int:
         return len(self.predecessors)
@@ -179,15 +184,31 @@ class Graph:
                 logger.debug(f'remove node {node.name}')
         self.nodes = nodes
 
+    def AssignSN(self):
+        sn = 0
+        for n in self.nodes:
+            n.sn = sn
+            sn = sn + 1
+
     def TransitiveReduction(self):
-        pass
+        # TODO
+        # naive implemetation
+        self.UpdateAllPredecessors()
+
+        for node in self.nodes:
+            preds = node.predecessors[:]
+            for pr in node.predecessors:
+                for ppr in node.predecessors:
+                    if pr.sn in ppr.all_predecessors:
+                        preds.remove(pr)
+                        break
+            node.predecessors = preds
 
     def AssignExecutor(self, num_executors: int = 2, policy: ExecutorAssignPolicy = ExecutorAssignPolicy.SPREAD):
         if policy == ExecutorAssignPolicy.SPREAD:
             self.AssignExeuctorSpread()
         else:
             self.AssignExecutorRandom()
-        pass
 
     def AssignExecutorSpread(self):
         seq = []
@@ -205,11 +226,6 @@ class Graph:
                 node.executor_id = random.randrange(0, self.num_executors)
 
     def DumpJson(self, fname: str):
-        sn = 0
-        for n in self.nodes:
-            n.sn = sn
-            sn = sn + 1
-
         json_dict = {
             'sv_headers': [],
             'c_headers': self.c_headers,

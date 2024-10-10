@@ -16,9 +16,7 @@ from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadByt
 
 from mint import stressapp
 
-import ivy_app_cfg
-
-logger = logging.getLogger('c_stressapp')
+logger = logging.getLogger('chi_stressapp')
 
 
 class DoFill(Action):
@@ -31,7 +29,9 @@ class DoFill(Action):
         pidx = pat.idx
         bus_shift = pat.bus_shift
         inverse = 1 if pat.inverse else 0
-        self.c_src = f'fill((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE}, {pidx}, {bus_shift}, {inverse});'
+        # TODO
+        self.sv_src = ''
+        # self.c_src = f'fill((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE}, {pidx}, {bus_shift}, {inverse});'
 
 
 class DoCopy(Action):
@@ -41,7 +41,8 @@ class DoCopy(Action):
         self.dst = dst
 
     def Body(self):
-        self.c_src = f'copy((void*){self.src.addr:#x}, (void*){self.dst.addr:#x}, {stressapp.PAGE_SIZE});'
+        self.sv_src = ''
+        # self.c_src = f'copy((void*){self.src.addr:#x}, (void*){self.dst.addr:#x}, {stressapp.PAGE_SIZE});'
 
 
 class DoInvert(Action):
@@ -50,7 +51,8 @@ class DoInvert(Action):
         self.page = page
 
     def Body(self):
-        self.c_src = f'invert((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE});'
+        self.sv_src = ''
+        # self.c_src = f'invert((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE});'
 
 
 class DoCheck(Action):
@@ -61,18 +63,8 @@ class DoCheck(Action):
     def Body(self):
         assert (self.page.pattern)
         crc = self.page.pattern.crc
-        self.c_src = f'check((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE}, (struct adler_checksum){{.a1={crc.a1:#x}, .a2 = {crc.a2:#x}, .b1 = {crc.b1:#x}, .b2 = {crc.b2:#x} }});'
-
-
-class CStressApp(Action):
-    def __init__(self, pages: typing.List[stressapp.Page], name: str = None) -> None:
-        super().__init__(name)
-        self.pages = pages
-        self.c_headers = ['#include <ivy/print.h>',
-                          '#include <ivy/xrt.h>', '#include "worker.h"']
-
-    def Activity(self):
-        Do(stressapp.StressApp(self.pages))
+        self.sv_src = ''
+        # self.c_src = f'check((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE}, (struct adler_checksum){{.a1={crc.a1:#x}, .a2 = {crc.a2:#x}, .b1 = {crc.b1:#x}, .b2 = {crc.b2:#x} }});'
 
 
 def Main():
@@ -80,15 +72,14 @@ def Main():
 
     addr_space = AddrSpace()
 
-    for fr in ivy_app_cfg.FREE_RANGES:
-        logger.info(f'addr space region: {fr[0]:#x}, {fr[1]:#x}')
-        addr_space.AddNode(fr[0], fr[1]-fr[0]+1, fr[2])
+    # TODO
+    addr_space.AddNode()
 
     parser = argparse.ArgumentParser()
     purslane.dsl.PrepareArgParser(parser)
 
     args = parser.parse_args()
-    args.num_executors = ivy_app_cfg.NR_CPUS
+    # args.num_executors = 2
 
     pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))
              for i in range(stressapp.PAGE_NUM)]
@@ -106,7 +97,7 @@ def Main():
           TypeOverride(stressapp.DoCheck, DoCheck),
           TypeOverride(stressapp.DoCopy, DoCopy),
           TypeOverride(stressapp.DoInvert, DoInvert)):
-        Run(CStressApp(pages), args)
+        Run(stressapp.StressApp(pages), args)
 
 if __name__ == '__main__':
     Main()

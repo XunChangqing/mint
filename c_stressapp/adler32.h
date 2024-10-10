@@ -4,7 +4,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <stdlib.h>
+// #include <stdlib.h>
 
 typedef struct adler_checksum{
   uint64_t a1;
@@ -14,7 +14,7 @@ typedef struct adler_checksum{
 } adler_checksum_t;
 
 static int checksum_equal(adler_checksum_t *l, adler_checksum_t *r) {
-  if (l->a1 == r->a1 && l->a2 == r->a2 && l->b1 == r->b1 && r->b2 == r->b2) {
+  if (l->a1 == r->a1 && l->a2 == r->a2 && l->b1 == r->b1 && l->b2 == r->b2) {
     return -1;
   }
   return 0;

@@ -1,6 +1,7 @@
 import random
 import logging
 import argparse
+import typing
 import sys
 from pathlib import Path
 from purslane import dag
@@ -54,12 +55,15 @@ class Action:
       name = self.GetClassName()
 
     self.name = global_ctx.name_resolver.Resolve(name)
-    self.sv_src = None
-    self.c_src = None
+    self.sv_src : str = None
+    self.c_src : str = None
     self.c_headers = None
     self.c_header = None
     self.c_decl = None
     self.executor_id = None
+
+    self.scope = None
+    self.deps : typing.List[Action] = []
     
   # def Activity(self):
   #   with Parallel():
@@ -93,9 +97,45 @@ class Sequence:
     self.cur_pred = ss.final_node
 
 # structural
+# TODO
+# 检查不同 sub scope 之间确实没有依赖
+# check there is no depedence between different sub scopes
 class Parallel:
   def __init__(self) -> None:
     self.name = global_ctx.name_resolver.Resolve('para')
+    self.init_node = dag.Node(f'{self.name}_init')
+    self.final_node = dag.Node(f'{self.name}_final')
+    self._sub_scope_finals = []
+
+  def __enter__(self):
+    global_ctx.graph.AddNode(self.init_node)
+    global_ctx.PushScope(self)
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    if len(self._sub_scope_finals) > 0:
+      for sf in self._sub_scope_finals:
+        self.final_node.AddPredecessor(sf)
+    else:
+      self.final_node.AddPredecessor(self.init_node)
+
+    global_ctx.graph.AddNode(self.final_node)
+    global_ctx.PopScope(self)
+
+  def SubScopeOver(self, fn):
+    self._sub_scope_finals.append(fn)
+    # reset pred
+    global_ctx.pred = self.init_node
+
+  def SubScopeEnter(self, ss):
+    ss.init_node.AddPredecessor(self.init_node)
+
+  def SubScopeExit(self, ss):
+    self._sub_scope_finals.append(ss.final_node)
+
+# structrual
+class Schedule:
+  def __init__(self) -> None:
+    self.name = global_ctx.name_resolver.Resolve('sched')
     self.init_node = dag.Node(f'{self.name}_init')
     self.final_node = dag.Node(f'{self.name}_final')
     self._sub_scope_finals = []
@@ -129,11 +169,11 @@ class CompoundActionScope:
   def __init__(self, act: Action) -> None:
     self.name = act.name
     self.act = act
+    act.scope = self
     self.init_node = dag.Node(f'{self.name}_init')
     self.final_node = dag.Node(f'{self.name}_final')
     self.cur_pred = self.init_node
     self.cur_parent_executor_id = False
-
 
   def __enter__(self):
     global_ctx.graph.AddNode(self.init_node)
@@ -169,6 +209,7 @@ class AtomicActionScope:
   def __init__(self, act: Action):
     self.name = act.name
     self.act = act
+    act.scope = self
     self.target_node = dag.Node(f'{self.name}')
     self.target_node.is_target = True
     self.init_node = self.target_node
@@ -268,6 +309,9 @@ def Do(act: Action) -> None:
       target_node.sv_src = act.sv_src
       target_node.executor_id = act.executor_id
 
+  for dep in act.deps:
+    act.scope.init_node.AddPredecessor(dep.scope.final_node)
+
 def Run(act, args: argparse.Namespace) -> None:
   random.seed(args.seed)
 
@@ -278,6 +322,10 @@ def Run(act, args: argparse.Namespace) -> None:
 
   logger.info(f'removing non-target nodes')
   global_ctx.graph.RemoveNonTargetNodes()
+  logger.info(f'assigning sn')
+  global_ctx.graph.AssignSN()
+  logger.info('transtive reducing')
+  global_ctx.graph.TransitiveReduction()
   # global_ctx.graph.AssignExecutorRandom()
   logger.info(f'assigning executor')
   global_ctx.graph.AssignExecutorSpread()

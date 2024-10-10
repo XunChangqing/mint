@@ -3,6 +3,7 @@
 
 import logging
 import argparse
+import typing
 import random
 import math
 from dataclasses import dataclass
@@ -10,7 +11,7 @@ from enum import Enum
 from mint import moesi
 from mint.moesi import Cacheline
 import purslane
-from purslane.dsl import Do, Action, Sequence, Parallel, Select, Run, TypeOverride
+from purslane.dsl import Do, Action, Sequence, Parallel, Schedule, Select, Run, TypeOverride
 from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt
 from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
@@ -255,82 +256,145 @@ class PatternList:
 
 PATTERN_LIST = PatternList()
 
-print(PATTERN_LIST.patterns[0].crc)
+PAGE_SIZE = 4096*2
+PAGE_NUM = 32
+BATCH_SIZE = 128
+BATCH_NUM = 8
 
-BUFFER_SIZE = 1024
-PARALLEL_MIN = 12
-PARALLEL_MAX = 24
 
-
-class Buffer:
-    def __init__(self, addr: int) -> None:
+class Page:
+    def __init__(self, addr: int, pattern: Pattern = None) -> None:
         self.addr = addr
-        self.valid = False
+        self.pattern = pattern
+        self.prev_claimers: typing.List[Action] = []
 
+class DoFill(Action):
+    def __init__(self, page: Page, name: str = None) -> None:
+        super().__init__(name)
+        self.page = page
 
-class BufferPool:
-    def __init__(self, addr_space: AddrSpace) -> None:
-        self._bufs = []
-        self._bufs_work = []
-        for i in range(PARALLEL_MAX*4):
-            self._bufs.append(addr_space.AllocRandom(BUFFER_SIZE, 64))
+class DoCopy(Action):
+    def __init__(self, src: Page, dst: Page, name: str = None) -> None:
+        super().__init__(name)
+        self.src = src
+        self.dst = dst
 
-    def GetEmpty(self) -> Buffer:
-        pass
+class DoInvert(Action):
+    def __init__(self, page: Page, name: str = None) -> None:
+        super().__init__(name)
+        self.page = page
 
-    def GetValid(self) -> Buffer:
-        pass
+class DoCheck(Action):
+    def __init__(self, page: Page, name: str = None) -> None:
+        super().__init__(name)
+        self.page = page
 
-    def Restore(elf) -> None:
-        pass
 
 class Fill(Action):
-    def __init__(self, name: str = None) -> None:
+    def __init__(self, page: Page, name: str = None) -> None:
         super().__init__(name)
+        self.page = page
+        self.page.pattern = PATTERN_LIST.GetRandomPattern()
+
+    def Activity(self):
+        Do(DoFill(self.page))
 
 class Copy(Action):
-    def __init__(self, bufs: list[Buffer], name: str = None) -> None:
+    def __init__(self, pages: typing.List[Page], name: str = None) -> None:
         super().__init__(name)
+        self.pages = pages
 
-        # self.src =
-        # self.dst =
-        self.dst.valid = True
+    def Activity(self):
+        random.shuffle(self.pages)
+        valid_page: Page = None
+        invalid_page: Page = None
 
-    def Body(self):
-        pass
+        for p in self.pages:
+            if valid_page is None and p.pattern is not None:
+                valid_page = p
+            if invalid_page is None and p.pattern is None:
+                invalid_page = p
+
+            if valid_page is not None and invalid_page is not None:
+                break
+
+        assert (valid_page)
+        assert (invalid_page)
+
+        self.deps.extend(valid_page.prev_claimers)
+        self.deps.extend(invalid_page.prev_claimers)
+
+        invalid_page.pattern = valid_page.pattern
+        valid_page.pattern = None
+        invalid_page.prev_claimers.append(self)
+        valid_page.prev_claimers.append(self)
+
+        Do(DoCopy(valid_page, invalid_page))
 
 
 class Invert(Action):
-    def __init__(self, buf: Buffer, name: str = None) -> None:
+    def __init__(self, pages: typing.List[Page], name: str = None) -> None:
         super().__init__(name)
-        self.buf = buf
+        self.pages = pages
 
     def Body(self):
-        pass
+        random.shuffle(self.pages)
+
+        for p in self.pages:
+            if p.pattern is not None:
+                pp = p
+
+        assert (pp)
+
+        self.deps.extend(pp.prev_claimers)
+
+        pp.prev_claimers.append(self)
+
+        self.c_src = f'invert((void*){pp.addr:#x}, {PAGE_SIZE});'
+
 
 class Check(Action):
+    def __init__(self, page: Page, name: str = None) -> None:
+        super().__init__(name)
+        self.page = page
+
+    def Activity(self):
+        Do(DoCheck(self.page))
+
+class Sync(Action):
     def __init__(self, name: str = None) -> None:
         super().__init__(name)
 
+    def Body(self):
+        self.c_src = ''
+        self.sv_src = ''
 
-class Model(Action):
-    def __init__(self, addr_space: AddrSpace, name: str = None) -> None:
+class StressApp(Action):
+    def __init__(self, pages: typing.List[Page], name: str = None) -> None:
         super().__init__(name)
-        self.addr_space = addr_space
-        self.bufs = []
-        for i in range(128):
-            self.bufs.append(self.addr_space.AllocRandom(BUFFER_SIZE, 64))
+        self.pages = pages
 
     def Activity(self):
-        for i in range(2):
-            # restore
-            bufs = self.bufs
 
-            num_para = random.randrange(PARALLEL_MIN, PARALLEL_MAX+1)
+        with Parallel():
+            for p in self.pages[0:int(len(self.pages)/2)]:
+                Do(Fill(p))
+        
+        Do(Sync())
+
+        for bn in range(BATCH_NUM):
+            with Schedule():
+                for i in range(BATCH_SIZE):
+                    Select(
+                        Invert(self.pages),
+                        Copy(self.pages)
+                    )
+
+            Do(Sync())
+
             with Parallel():
-                for j in range(num_para):
-                    match(random.randrange(0, 2)):
-                        case 0:
-                            pass
-                        case 1:
-                            pass
+                for p in self.pages:
+                    if p.pattern is not None:
+                        Do(Check(p))
+            
+            Do(Sync())

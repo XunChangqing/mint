@@ -25,9 +25,11 @@ else()
   set(purslane_debug)
 endif()
 
+get_target_property(ivy_binary_dir ivy BINARY_DIR)
+
 add_custom_command(
   OUTPUT c_stressapp.c
-  COMMAND PYTHONPATH=${CMAKE_BINARY_DIR} python ${CMAKE_CURRENT_SOURCE_DIR}/c_stressapp.py --soc_output c_stressapp.c --soc_cooperative ${purslane_debug}
+  COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/c_stressapp.py --soc_output c_stressapp.c --soc_cooperative ${purslane_debug}
   DEPENDS c_stressapp.py
 )
 

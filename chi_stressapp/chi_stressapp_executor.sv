@@ -1,0 +1,2 @@
+class StressAppExecutor extends cdnChiUvmSequence;
+endclass
