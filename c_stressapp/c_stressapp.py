@@ -44,13 +44,34 @@ class DoCopy(Action):
         self.c_src = f'copy((void*){self.src.addr:#x}, (void*){self.dst.addr:#x}, {stressapp.PAGE_SIZE});'
 
 
-class DoInvert(Action):
+class InvertUp(Action):
     def __init__(self, page: stressapp.Page, name: str = None) -> None:
         super().__init__(name)
         self.page = page
 
     def Body(self):
-        self.c_src = f'invert((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE});'
+        self.c_src = f'invert_up((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE});'
+
+
+class InvertDown(Action):
+    def __init__(self, page: stressapp.Page, name: str = None) -> None:
+        super().__init__(name)
+        self.page = page
+
+    def Body(self):
+        self.c_src = f'invert_down((void*){self.page.addr:#x}, {stressapp.PAGE_SIZE});'
+
+
+class DoInvert(Action):
+    def __init__(self, page: stressapp.Page, name: str = None) -> None:
+        super().__init__(name)
+        self.page = page
+
+    def Activity(self):
+        Do(InvertUp(self.page))
+        Do(InvertDown(self.page))
+        Do(InvertUp(self.page))
+        Do(InvertDown(self.page))
 
 
 class DoCheck(Action):
@@ -87,8 +108,26 @@ def Main():
     parser = argparse.ArgumentParser()
     purslane.dsl.PrepareArgParser(parser)
 
+    parser.add_argument('--pclass', help='problem class of size')
+
     args = parser.parse_args()
     args.num_executors = ivy_app_cfg.NR_CPUS
+
+    logger.info(f'problem class {args.pclass}')
+    pclass = args.pclass
+    sim_page_size = 4096
+    match(pclass[0]):
+        case 's' | 'S':
+            stressapp.PAGE_SIZE = 4096
+        case 'w' | 'W':
+            stressapp.PAGE_SIZE = 1024*1024
+        case 'a' | 'A':
+            stressapp.PAGE_SIZE = 4*1024*1024
+        case _:
+            logger.critical(f'invalid problem class {pclass}')
+            raise f'invalid problem class'
+
+    logger.info(f'page size {stressapp.PAGE_SIZE}')
 
     pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))
              for i in range(stressapp.PAGE_NUM)]
@@ -107,6 +146,7 @@ def Main():
           TypeOverride(stressapp.DoCopy, DoCopy),
           TypeOverride(stressapp.DoInvert, DoInvert)):
         Run(CStressApp(pages), args)
+
 
 if __name__ == '__main__':
     Main()

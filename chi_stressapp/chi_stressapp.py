@@ -73,13 +73,16 @@ def Main():
     addr_space = AddrSpace()
 
     # TODO
-    addr_space.AddNode()
+    # addr_space.AddNode()
 
     parser = argparse.ArgumentParser()
     purslane.dsl.PrepareArgParser(parser)
 
     args = parser.parse_args()
     # args.num_executors = 2
+
+    Run(Model(), args)
+    return
 
     pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))
              for i in range(stressapp.PAGE_NUM)]

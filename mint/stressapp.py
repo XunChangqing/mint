@@ -337,7 +337,7 @@ class Invert(Action):
         super().__init__(name)
         self.pages = pages
 
-    def Body(self):
+    def Activity(self):
         random.shuffle(self.pages)
 
         for p in self.pages:
@@ -350,7 +350,7 @@ class Invert(Action):
 
         pp.prev_claimers.append(self)
 
-        self.c_src = f'invert((void*){pp.addr:#x}, {PAGE_SIZE});'
+        Do(DoInvert(pp))
 
 
 class Check(Action):
@@ -398,3 +398,7 @@ class StressApp(Action):
                         Do(Check(p))
             
             Do(Sync())
+
+            # clear out all previous claimers of pages
+            for p in self.pages:
+                p.prev_claimers.clear()

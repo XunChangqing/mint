@@ -83,7 +83,6 @@ class Node:
         return len(self.predecessors)
 
     def UpdateSuccessors(self):
-        self.successors.clear()
         for p in self.predecessors:
             p.AddSuccessor(self)
 
@@ -158,6 +157,8 @@ class Graph:
         pass
 
     def UpdateSuccessors(self):
+        for node in self.nodes:
+            node.successors.clear()
         for node in self.nodes:
             node.UpdateSuccessors()
 
@@ -365,7 +366,7 @@ def CooperativeCBackendGen(graph: Graph, hosted: bool, core_binding: bool, f: io
         f.write('// headers\n')
         for header in graph.c_headers:
             f.write(f'{header}\n')
-    
+
     if len(graph.c_decls) > 0:
         f.write('// declarations\n')
         for decl in graph.c_decls:

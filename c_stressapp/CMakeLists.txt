@@ -12,6 +12,8 @@ find_package(ivy)
 add_ivy_executable(stressapp)
 target_sources(stressapp PRIVATE main.c adler32.h adler32.c fill.c pattern.h worker.h worker.c c_stressapp.c)
 
+set(CLASS a CACHE STRING "problem size")
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_custom_command(
@@ -29,7 +31,7 @@ get_target_property(ivy_binary_dir ivy BINARY_DIR)
 
 add_custom_command(
   OUTPUT c_stressapp.c
-  COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/c_stressapp.py --soc_output c_stressapp.c --soc_cooperative ${purslane_debug}
+  COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/c_stressapp.py --soc_output c_stressapp.c --soc_cooperative ${purslane_debug} --pclass ${CLASS}
   DEPENDS c_stressapp.py
 )
 
