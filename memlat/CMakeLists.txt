@@ -15,10 +15,12 @@ set(memlat_line "64KiB" CACHE STRING "cache line")
 add_ivy_executable(memlat)
 target_sources(memlat PRIVATE main.c)
 
+get_target_property(ivy_binary_dir ivy BINARY_DIR)
+
 add_custom_command(
-  OUTPUT data.bin memlat_cfg.h
-  COMMAND PYTHONPATH=${CMAKE_BINARY_DIR} python ${CMAKE_CURRENT_SOURCE_DIR}/data_gen.py --length ${memlat_len} --line ${memlat_line}
+  OUTPUT data.S memlat_cfg.h
+  COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/data_gen.py --length ${memlat_len} --line ${memlat_line}
+  DEPENDS data_gen.py
 )
 
-target_sources(memlat PRIVATE memlat_cfg.h)
-ivy_target_mem_files(memlat data.bin)
+target_sources(memlat PRIVATE memlat_cfg.h data.S)

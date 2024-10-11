@@ -81,9 +81,6 @@ def Main():
     args = parser.parse_args()
     # args.num_executors = 2
 
-    Run(Model(), args)
-    return
-
     pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))
              for i in range(stressapp.PAGE_NUM)]
 

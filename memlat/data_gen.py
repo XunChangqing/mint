@@ -89,19 +89,20 @@ if __name__ == '__main__':
   parser.add_argument("--line", help="cache line size", type=str, required=True)
   args = parser.parse_args()
 
-  len = DataSize(args.length)
+  length = DataSize(args.length)
   line = DataSize(args.line)
-  print(f'memlat len {len:B} line {line:B}')
+  print(f'memlat len {length:B} line {line:B}')
 
-  if len % line != 0:
+  if length % line != 0:
     raise Exception('len should be divisible by line')
 
-  head, ptrs = create_circular_list(ivy_app_cfg.PAGE_SIZE, len, line)
+  head, ptrs = create_circular_list(ivy_app_cfg.PAGE_SIZE, length, line)
 
   # 遍历一圈检查
   cnt = 0
   cur = head
   while True:
+    print(f'cur {cur}')
     cur = ptrs[cur]
     cur = int(cur/8)
     cnt += 1
@@ -109,17 +110,25 @@ if __name__ == '__main__':
         break
   print("OK", cnt)
 
-  times_per_iter = math.ceil((len/line)/100)
+  times_per_iter = math.ceil((length/line)/100)
   print("times per iter: ", times_per_iter)
   print("test times: ", times_per_iter*100*8)
 
   # 数据写入内存文件, 注意只有索引,运行时需要加上基地址便宜
-  with open('data.bin', 'wb') as f:
+  with open('data.S', 'w') as f:
+    f.write('\t.align 8\n')
+    f.write('\t.section\t".data"\n')
+    f.write('.global lat_data\n')
+    f.write('lat_data:\n')
     for ptr in ptrs:
-      f.write((int(ptr)).to_bytes(8, 'little', signed=False))
+      # print(f'ptr {ptr:#x}')
+      # f.write((int(ptr)).to_bytes(8, 'little', signed=False))
+      f.write(f'\t.quad\tlat_data+{int(ptr)}\n')
 
   with open('memlat_cfg.h', 'w') as f:
     f.write('#pragma once\n')
     f.write("#define HEAD ({:#x})\n\n".format(head))
     f.write("#define WARMUP_TIMES ({})\n".format(times_per_iter))
     f.write("#define TEST_TIMES ({})\n\n".format(times_per_iter*8))
+    f.write("#define NUM_PTR ({})\n\n".format(len(ptrs)))
+

@@ -12,7 +12,7 @@ find_package(ivy)
 add_ivy_executable(stressapp)
 target_sources(stressapp PRIVATE main.c adler32.h adler32.c fill.c pattern.h worker.h worker.c c_stressapp.c)
 
-set(CLASS a CACHE STRING "problem size")
+set(CLASS s CACHE STRING "problem size")
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 

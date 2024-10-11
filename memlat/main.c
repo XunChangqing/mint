@@ -1,11 +1,11 @@
 // 测试存储延迟
+#include <ivy/print.h>
+#include <ivy/xrt.h>
 #include <stdint.h>
 
 #include "ivy_cfg.h"
 #include "ivy_mem_files.h"
 #include "memlat_cfg.h"
-#include "print.h"
-#include "xrt.h"
 
 #define ONE p = (char **)*p;
 #define FIVE ONE ONE ONE ONE ONE
@@ -16,13 +16,10 @@
 static volatile uint64_t use_result_dummy;
 void use_pointer(void *result) { use_result_dummy += (long)result; }
 
+extern uint64_t lat_data;
+
 void memlat_test() {
-  // TOFIX
-  // 存储分配
-  // 将文件内容拷贝到分配存储
-  // 文件内容为索引号
-  char *arr;
-  // IVY_MEM_FILE_0_DATA_BIN_START;
+  char **arr = (char **)&lat_data;
 
   char **head = (char **)arr[HEAD];
   char **p = (char **)arr[HEAD];
@@ -57,7 +54,6 @@ void memlat_test() {
 
 void xmain() {
   if (xrt_get_core_id() == 0) {
-    // IVY_MEM_FILE_0_DATA_BIN_START
     memlat_test();
   }
 }
