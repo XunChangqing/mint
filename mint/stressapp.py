@@ -16,6 +16,7 @@ from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, Ra
 from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
+import purslane.dsl
 
 # 获取目标平台配置
 # import ivy_app_cfg
@@ -258,8 +259,7 @@ PATTERN_LIST = PatternList()
 
 PAGE_SIZE = 4096*2
 PAGE_NUM = 32
-BATCH_SIZE = 128
-BATCH_NUM = 8
+BATCH_NUM = 4
 
 
 class Page:
@@ -384,7 +384,9 @@ class StressApp(Action):
 
         for bn in range(BATCH_NUM):
             with Schedule():
-                for i in range(BATCH_SIZE):
+                num_executors = purslane.dsl.num_executors()
+                batch_size = random.randrange(num_executors*8, num_executors*8+1)
+                for i in range(batch_size):
                     Select(
                         Invert(self.pages),
                         Copy(self.pages)

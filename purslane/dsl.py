@@ -29,6 +29,7 @@ class Context:
         self.scopes = []
         self.pred = None
         self.parent_executor_id = None
+        self.num_executors = 0
 
     def PushScope(self, scope):
         # logger.debug(f'PushScope {scope.name}')
@@ -326,7 +327,7 @@ def PrepareArgParser(parser: argparse.ArgumentParser) -> None:
     # parser = argparse.ArgumentParser()
     # parser.add_argument("testcase", metavar='testcase',
     #                     help="which testcase to build")
-    parser.add_argument('-S', '--seed', default=0, help='random seed')
+    parser.add_argument('-S', '--seed', help='random seed, default is random')
     parser.add_argument('--graph_output', default='graph.json',
                         help='graph output file name')
     parser.add_argument('--num_executors', default=2,
@@ -378,7 +379,13 @@ def Do(act: Action) -> None:
 
 
 def Run(act, args: argparse.Namespace) -> None:
-    random.seed(args.seed)
+    if args.seed is not None:
+        logger.info(f'random seed is {args.seed}')
+        random.seed(args.seed)
+    else:
+        logger.info(f'random seed')
+
+    global_ctx.num_executors = args.num_executors
 
     logger.info(f'Do {act.name}')
     Do(act)
@@ -411,6 +418,8 @@ def Run(act, args: argparse.Namespace) -> None:
             dag.PreemptiveCBackendGenF(
                 global_ctx.graph, True, f'{args.soc_output}')
 
+def num_executors() -> int:
+    return global_ctx.num_executors
 
 # utils
 def _Rand8(signed: bool = False) -> int:

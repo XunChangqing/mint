@@ -115,10 +115,9 @@ def Main():
 
     logger.info(f'problem class {args.pclass}')
     pclass = args.pclass
-    sim_page_size = 4096
     match(pclass[0]):
         case 's' | 'S':
-            stressapp.PAGE_SIZE = 4096
+            stressapp.PAGE_SIZE = 4*1024
         case 'w' | 'W':
             stressapp.PAGE_SIZE = 1024*1024
         case 'a' | 'A':
@@ -126,20 +125,11 @@ def Main():
         case _:
             logger.critical(f'invalid problem class {pclass}')
             raise f'invalid problem class'
-
-    logger.info(f'page size {stressapp.PAGE_SIZE}')
+        
+    stressapp.PAGE_NUM = args.num_executors * 6
 
     pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))
              for i in range(stressapp.PAGE_NUM)]
-
-    # num_repeat_times = args.num_repeat_times
-    # num_repeat_times = 64
-
-    # moesi.NUM_EXECUTORS = args.num_executors
-    # moesi.MAX_NUM_PARALLEL = 1
-    # # moesi.NUM_EXECUTORS * 4
-    # moesi.MIN_NUM_PARALLEL = 1
-    # # moesi.NUM_EXECUTORS * 1
 
     with (TypeOverride(stressapp.DoFill, DoFill),
           TypeOverride(stressapp.DoCheck, DoCheck),
