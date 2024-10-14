@@ -79,6 +79,14 @@ def Main():
     purslane.dsl.PrepareArgParser(parser)
 
     args = parser.parse_args()
+
+    if args.seed is not None:
+        rand_seed = args.seed
+    else:
+        rand_seed = random.getrandbits(31)
+    random.seed(rand_seed)
+    logger.info(f'random seed is {rand_seed}')
+
     # args.num_executors = 2
 
     pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))

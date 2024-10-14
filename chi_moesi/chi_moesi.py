@@ -14,6 +14,8 @@ from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
 
+logger = logging.getLogger('chi_moesi')
+
 
 def BytesSvStr(ba: bytearray) -> str:
     ss = [f'8\'h{b:x}' for b in ba]
@@ -598,6 +600,13 @@ def Main():
     parser.add_argument('--num_repeat_times', type=int, default=2)
 
     args = parser.parse_args()
+
+    if args.seed is not None:
+        rand_seed = args.seed
+    else:
+        rand_seed = random.getrandbits(31)
+    random.seed(rand_seed)
+    logger.info(f'random seed is {rand_seed}')
 
     if args.num_executors < 2:
         raise ('need more than one executor')

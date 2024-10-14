@@ -99,6 +99,8 @@ class CStressApp(Action):
 def Main():
     logging.basicConfig(level=logging.INFO)
 
+    print(random.getrandbits(31))
+
     addr_space = AddrSpace()
 
     for fr in ivy_app_cfg.FREE_RANGES:
@@ -111,6 +113,13 @@ def Main():
     parser.add_argument('--pclass', help='problem class of size')
 
     args = parser.parse_args()
+    if args.seed is not None:
+        rand_seed = args.seed
+    else:
+        rand_seed = random.getrandbits(31)
+    random.seed(rand_seed)
+    logger.info(f'random seed is {rand_seed}')
+
     args.num_executors = ivy_app_cfg.NR_CPUS
 
     logger.info(f'problem class {args.pclass}')

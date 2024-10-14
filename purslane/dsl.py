@@ -379,12 +379,6 @@ def Do(act: Action) -> None:
 
 
 def Run(act, args: argparse.Namespace) -> None:
-    if args.seed is not None:
-        logger.info(f'random seed is {args.seed}')
-        random.seed(args.seed)
-    else:
-        logger.info(f'random seed')
-
     global_ctx.num_executors = args.num_executors
 
     logger.info(f'Do {act.name}')

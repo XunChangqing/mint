@@ -26,8 +26,6 @@ ASSOCIATIVITY = 4
 NUM_SETS = 1024
 
 
-
-
 class Size(Enum):
     Byte = 0
     HalfWord = 1
@@ -570,6 +568,7 @@ class AtomicOp(Enum):
     Min = 5
     UMax = 6
     UMin = 7
+
 
 AtomicOpInstTab = {
     AtomicOp.Add: 'add',
@@ -1839,17 +1838,17 @@ class STUMINLB(AtomicLDST_GEN):
 
 # atomic swp
 class AtomicSwp_GEN(Action):
-    def __init__(self, addr: int, size: Size, acquire:bool, release:bool, name: str = None) -> None:
+    def __init__(self, addr: int, size: Size, acquire: bool, release: bool, name: str = None) -> None:
         super().__init__(name)
         self.addr = addr
         self.size = size
         self.acquire = acquire
         self.release = release
-    
+
     def Body(self):
         r = 'w'
         if self.size == Size.DoubleWord:
-            r = 'x'        
+            r = 'x'
 
         suffix = ''
         if self.acquire:
@@ -1864,12 +1863,12 @@ class AtomicSwp_GEN(Action):
 
         byte_size = self.size.ByteSize()
         bit_width = self.size.BitWidth()
-        
+
         old_byte_val = SMReadBytes(self.addr, byte_size)
         old_int_val = int.from_bytes(old_byte_val, 'little')
         new_int_val = RandUInt(bit_width)
         new_byte_val = new_int_val.to_bytes(byte_size, 'little')
-        
+
         SMWriteBytes(self.addr, new_byte_val)
 
         self.c_src = f"""
@@ -1878,84 +1877,104 @@ class AtomicSwp_GEN(Action):
         """
         self.c_src += CheckValue('ov', self.addr, old_int_val)
 # swap
+
+
 class SWP(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
-        super().__init__(addr, size=Size.DoubleWord, acquire=False, release=False, name=name)
+        super().__init__(addr, size=Size.DoubleWord,
+                         acquire=False, release=False, name=name)
+
 
 class SWPW(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=False, release=False, name=name)
 
+
 class SWPH(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=False, release=False, name=name)
+
 
 class SWPB(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Byte, acquire=False, release=False, name=name)
 
+
 class SWPA(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.DoubleWord, acquire=True, release=False, name=name)
+
 
 class SWPAW(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=True, release=False, name=name)
 
+
 class SWPAH(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=True, release=False, name=name)
+
 
 class SWPAB(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Byte, acquire=True, release=False, name=name)
 
+
 class SWPAL(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.DoubleWord, acquire=True, release=True, name=name)
+
 
 class SWPALW(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=True, release=True, name=name)
 
+
 class SWPALH(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=True, release=True, name=name)
+
 
 class SWPALB(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Byte, acquire=True, release=True, name=name)
 
+
 class SWPL(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.DoubleWord, acquire=False, release=True, name=name)
+
 
 class SWPLW(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=False, release=True, name=name)
 
+
 class SWPLH(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=False, release=True, name=name)
+
 
 class SWPLB(AtomicSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Byte, acquire=False, release=True, name=name)
 
 # atomic cmp-swp
+
+
 class AtomicCmpSwp_GEN(Action):
-    def __init__(self, addr: int, size: Size, acquire:bool, release:bool, name: str = None) -> None:
+    def __init__(self, addr: int, size: Size, acquire: bool, release: bool, name: str = None) -> None:
         super().__init__(name)
         self.addr = addr
         self.size = size
         self.acquire = acquire
         self.release = release
         self.cmp_eq = None
-    
+
     def Body(self):
         r = 'w'
         if self.size == Size.DoubleWord:
-            r = 'x'        
+            r = 'x'
 
         suffix = ''
         if self.acquire:
@@ -1970,7 +1989,7 @@ class AtomicCmpSwp_GEN(Action):
 
         byte_size = self.size.ByteSize()
         bit_width = self.size.BitWidth()
-        
+
         old_byte_val = SMReadBytes(self.addr, byte_size)
         old_int_val = int.from_bytes(old_byte_val, 'little')
         new_int_val = RandUInt(bit_width)
@@ -1984,7 +2003,7 @@ class AtomicCmpSwp_GEN(Action):
         if not self.cmp_eq:
             while cmp_int_val == old_int_val:
                 cmp_int_val = RandUInt(bit_width)
-        
+
         if self.cmp_eq:
             SMWriteBytes(self.addr, new_byte_val)
 
@@ -1992,65 +2011,82 @@ class AtomicCmpSwp_GEN(Action):
         asm volatile("cas{suffix} %{r}0, %{r}1, [%2]" : : "r" ({cmp_int_val:#x}), "r" ({new_int_val:#x}), "r" ({self.addr:#x}));
         """
 
+
 class CAS(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
-        super().__init__(addr, size=Size.DoubleWord, acquire=False, release=False, name=name)
+        super().__init__(addr, size=Size.DoubleWord,
+                         acquire=False, release=False, name=name)
+
 
 class CASW(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=False, release=False, name=name)
 
+
 class CASH(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=False, release=False, name=name)
+
 
 class CASB(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Byte, acquire=False, release=False, name=name)
 
+
 class CASA(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.DoubleWord, acquire=True, release=False, name=name)
+
 
 class CASAW(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=True, release=False, name=name)
 
+
 class CASAH(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=True, release=False, name=name)
+
 
 class CASAB(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Byte, acquire=True, release=False, name=name)
 
+
 class CASAL(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.DoubleWord, acquire=True, release=True, name=name)
+
 
 class CASALW(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=True, release=True, name=name)
 
+
 class CASALH(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=True, release=True, name=name)
+
 
 class CASALB(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Byte, acquire=True, release=True, name=name)
 
+
 class CASL(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.DoubleWord, acquire=False, release=True, name=name)
+
 
 class CASLW(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.Word, acquire=False, release=True, name=name)
 
+
 class CASLH(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, size=Size.HalfWord, acquire=False, release=True, name=name)
+
 
 class CASLB(AtomicCmpSwp_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
@@ -2468,10 +2504,10 @@ class Write128(Action):
 
     def Activity(self):
         Select(
-               STP(self.addr),
-               STNP(self.addr),
-               STXP(self.addr),
-            )
+            STP(self.addr),
+            STNP(self.addr),
+            STXP(self.addr),
+        )
 
 
 class Read(Action):
@@ -2534,52 +2570,62 @@ class Write(Action):
                 offset *= 16
                 Do(Write128(self.cl.addr+offset))
 
+
 class WriteNoAlloc(Write):
     pass
 
 # data cache maintanance
+
+
 class DCVA_GEN(Action):
-    def __init__(self, addr:int, inst: str, name: str = None) -> None:
+    def __init__(self, addr: int, inst: str, name: str = None) -> None:
         super().__init__(name)
-        assert(addr%64 == 0)
+        assert (addr % 64 == 0)
         self.addr = addr
         self.inst = inst
 
     def Body(self):
         self.c_src = f'asm volatile("{self.inst}, %x0" : : "r" ({self.addr:#x}));'
 
+
 class DCIVAC(DCVA_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, 'dc ivac', name)
+
 
 class DCCVAC(DCVA_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, 'dc cvac', name)
 
+
 class DCCVAU(DCVA_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, 'dc cvau', name)
+
 
 class DCCVAP(DCVA_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, 'dc cvap', name)
 
+
 class DCCIVAC(DCVA_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, 'dc civac', name)
 
+
 class DCZVA(DCVA_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, 'dc zva', name)
-    
+
     def Body(self):
         super().Body()
         SMWriteBytes(self.addr, bytes(CACHELINE_SIZE))
 
+
 class DCSW_GEN(Action):
-    def __init__(self, addr:int, inst: str, name: str = None) -> None:
+    def __init__(self, addr: int, inst: str, name: str = None) -> None:
         super().__init__(name)
-        assert(addr%64 == 0)
+        assert (addr % 64 == 0)
         self.addr = addr
         self.inst = inst
 
@@ -2597,12 +2643,14 @@ class DCSW_GEN(Action):
 #     def __init__(self, addr: int, name: str = None) -> None:
 #         super().__init__(addr, 'dc isw', name)
 
+
 class DCCSW(DCSW_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
         super().__init__(addr, 'dc csw', name)
 
     def Body(self) -> None:
         self.c_src = f'dc_csw({self.addr:#x});'
+
 
 class DCCISW(DCSW_GEN):
     def __init__(self, addr: int, name: str = None) -> None:
@@ -2611,27 +2659,30 @@ class DCCISW(DCSW_GEN):
     def Body(self) -> None:
         self.c_src = f'dc_cisw({self.addr:#x});'
 
+
 class Clean(Action):
-    def __init__(self, cl:Cacheline, name: str = None) -> None:
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
     def Activity(self):
         Do(DCCSW(self.cl.aligned_addr))
 
+
 class CleanInvalidate(Action):
-    def __init__(self, cl:Cacheline, name: str = None) -> None:
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
-    
+
     def Activity(self):
         Do(DCCISW(self.cl.aligned_addr))
+
 
 class CleanDomain(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
-    
+
     def Activity(self):
         addr = self.cl.aligned_addr
         # invalidate 操作暂时无法支持，不能丢失 modified 的值
@@ -2641,8 +2692,9 @@ class CleanDomain(Action):
             DCCVAU(addr),
         )
 
+
 class CleanInvalidateDomain(Action):
-    def __init__(self, cl:Cacheline, name: str = None) -> None:
+    def __init__(self, cl: Cacheline, name: str = None) -> None:
         super().__init__(name)
         self.cl = cl
 
@@ -2652,6 +2704,7 @@ class CleanInvalidateDomain(Action):
             DCCIVAC(addr),
             DCZVA(addr),
         )
+
 
 class Init(Action):
     def __init__(self, cl: Cacheline, name: str = None) -> None:
@@ -2694,6 +2747,7 @@ class CachelinePool:
         # logger.debug(f'cl free begins with addr: 0x{cl.addr:x}')
         self.addr_space.Free(cl.aligned_addr, CACHELINE_SIZE)
         # logger.debug(f'cl free ends')
+
 
 AARCH64_DECL = r"""
 #define ID_MMFR2_CCIDX_SHIFT (20)
@@ -2777,12 +2831,14 @@ static void dc_cisw(uint64_t addr) {
 }
 """
 
+
 class AArch64Init(Action):
     def __init__(self, name: str = None) -> None:
         super().__init__(name)
 
     def Body(self) -> None:
         self.c_src = "dc_init();"
+
 
 class AArch64Moesi(Action):
     def __init__(self, npt: int, name: str = None) -> None:
@@ -2815,6 +2871,14 @@ def Main():
     parser.add_argument('--num_repeat_times', type=int, default=2)
 
     args = parser.parse_args()
+
+    if args.seed is not None:
+        rand_seed = args.seed
+    else:
+        rand_seed = random.getrandbits(31)
+    random.seed(rand_seed)
+    logger.info(f'random seed is {rand_seed}')
+
     args.num_executors = ivy_app_cfg.NR_CPUS
 
     if args.num_executors < 2:
