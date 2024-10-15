@@ -286,6 +286,8 @@ class AddrSpace:
         self.memory = AddrRegionType('free')
         # 保留存储
         self.reserved = AddrRegionType('reserved')
+        # allocated regions, addr -> size
+        self.regions_in_use = {int: int}
 
     # 新增保留的存储段，可能一开始就保留，也可能是分配以后保留
     def Reserve(self, base, size):
@@ -369,7 +371,7 @@ class AddrSpace:
 
     # 在指定start和end之间，为nid分配尺寸为size（对齐到align）存储
     # nid为None表示任意节点
-    def AllocRangeNid(self, size, align, start, end, nid, rand: bool = False):
+    def AllocRangeNid(self, size, align, start, end, nid, rand: bool = False) -> int:
         if end is None:
             end = PHYS_ADDR_MAX
 
@@ -379,30 +381,37 @@ class AddrSpace:
 
         size_aligned = size
         self.Reserve(found, size_aligned)
+
+        self.regions_in_use[found] = size
         # self.reserved.LogRegions()
         return found
 
     # 在指定start和end之间，分配存储，尺寸为size，分配初始地址对齐到align
-    def AllocRange(self, size, align, start, end):
+    def AllocRange(self, size: int, align: int, start: int, end: int) -> int:
         return self.AllocRangeNid(size, align, start, end, None)
 
-    def AllocNid(self, size, align, nid):
+    # alloc memory from the specific numa node
+    def AllocNid(self, size: int, align: int, nid: int) -> int:
         return self.AllocRangeNid(size, align, 0, PHYS_ADDR_MAX, nid)
 
-    def Alloc(self, size, align):
+    def Alloc(self, size: int, align: int) -> int:
         return self.AllocRange(size, align, 0, PHYS_ADDR_MAX)
 
-    def AllocRangeRandom(self, size, align, start, end):
+    def AllocRangeRandom(self, size: int, align: int, start: int, end: int) -> int:
         return self.AllocRangeNid(size, align, start, end, None, True)
 
-    def AllocNidRandom(self, size, align, nid):
+    def AllocNidRandom(self, size: int, align: int, nid: int) -> int:
         return self.AllocRangeNid(size, align, 0, PHYS_ADDR_MAX, nid, True)
 
-    def AllocRandom(self, size, align):
+    def AllocRandom(self, size: int, align: int) -> int:
         return self.AllocRangeRandom(size, align, 0, PHYS_ADDR_MAX)
 
-    def Free(self, base, size):
-        self.reserved.RemoveRange(base, size)
+    def Free(self, base: int, size: int = None) -> int:
+        if base in self.regions_in_use:
+            ss = self.regions_in_use[base]
+            self.reserved.RemoveRange(base, ss)
+        else:
+            raise f'address is illegal {base:#x}'
         # self.reserved.LogRegions()
 
 

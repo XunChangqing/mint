@@ -240,6 +240,10 @@ class App:
   @property
   def nr_cpus(self):
     return len(self._active_cores)
+  
+  @property
+  def cpus(self):
+    return self._active_cores
 
   # 不允许在任意位置添加 loadable section
   # 添加一个数据段，用户必须确保该片地址经过分配得到
@@ -395,12 +399,6 @@ def Main():
   # 输出 c 语言接口
   app.Gen()
 
-  # 输出 pss 接口
-  # with open('ivy_app_cfg.pss', 'w') as f:
-  #   f.write('package ivy_app_cfg{\n')
-  #   f.write(f'const bit[32] NUM_CPUS = {app.nr_cpus};\n')
-  #   f.write('}\n')
-
   # 输出 python 输出
   with open('ivy_app_cfg.py', 'w') as f:
     f.write(f'TEXT_BASE = {app.text_base:#x}\n')
@@ -413,3 +411,13 @@ def Main():
       f.write(f'({fr[0]:#x}, {fr[1]:#x}, {fr[2]:#x}),')
     f.write(']\n')
 
+    f.write('import ivy.cfg\n')
+    f.write('cpus = [')
+    for lid, cpu in enumerate(app.cpus):
+      f.write(f'ivy.cfg.Cpu(id={cpu.id}, lid = {lid}, numa_id={cpu.nid}),')
+    f.write(']\n')
+
+    f.write('free_mem_ranges = [')
+    for fr in app.FreeRanges():
+      f.write(f'ivy.cfg.MemoryRange(base={fr[0]:#x}, size={fr[1]-fr[0]:#x}, numa_id={fr[2]:#x}),')
+    f.write(']\n')

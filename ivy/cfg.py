@@ -17,3 +17,15 @@ class Config:
     # 在qemu中一般时最小ram地址+TEXT_OFFSET，即0x80000
     # 统一起来，如果用户不知道，则默认为最小ram地址+0x80000
     load_addr: typing.Optional[int] = None
+
+@dataclass
+class Cpu:
+    id: int
+    lid: int
+    numa_id: int
+
+@dataclass
+class MemoryRange:
+    base: int
+    size: int
+    numa_id: int

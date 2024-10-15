@@ -4,6 +4,10 @@
 
 #pragma once
 
+#ifdef __ASSEMBLY__
+#error(can only be included in assembly files)
+#endif
+
 #include <linux/types.h>
 
 // 物理 cpu barrier 同步等待

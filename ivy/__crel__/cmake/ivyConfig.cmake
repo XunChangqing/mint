@@ -1,33 +1,42 @@
 set(device_tree "virt.dts" CACHE PATH "path to device tree source")
 set(ivy_cfg "ivy_cfg.json" CACHE PATH "path to ivy config json file")
 
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/.. ivy_build)
+
 # 添加一个可执行的裸机激励
 function(add_ivy_executable exec_name)
   add_executable(${exec_name})
-
-  add_subdirectory(${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.. ivy_build)
+  
   target_link_libraries(${exec_name} PRIVATE ivy)
 
-  target_sources(${exec_name} PRIVATE ivy_mem_files.h)
+  # target_sources(${exec_name} PRIVATE ivy_mem_files.h)
   target_include_directories(${exec_name} PRIVATE ${CMAKE_BINARY_DIR})
 
   # 预处理生成 memory files 头文件
   # memory files 列表存储于 target 属性内
-  set_property(TARGET ${exec_name} PROPERTY MEM_FILES)
-  add_custom_command(
-    OUTPUT ivy_mem_files.h
-    COMMAND ivy_memfile_gen "$<LIST:TRANSFORM,$<TARGET_PROPERTY:${exec_name},MEM_FILES>,PREPEND,-F>"
-    DEPENDS $<TARGET_PROPERTY:${exec_name},MEM_FILES>
-    COMMAND_EXPAND_LISTS
-    VERBATIM
-  )
+  # set_property(TARGET ${exec_name} PROPERTY MEM_FILES)
+  # add_custom_command(
+  #   OUTPUT ivy_mem_files.h
+  #   COMMAND ivy_memfile_gen "$<LIST:TRANSFORM,$<TARGET_PROPERTY:${exec_name},MEM_FILES>,PREPEND,-F>"
+  #   DEPENDS $<TARGET_PROPERTY:${exec_name},MEM_FILES>
+  #   COMMAND_EXPAND_LISTS
+  #   VERBATIM
+  # )
 
   # 附加 image 文件生成
   # 合并所有 memory files 文件内容
+  # add_custom_command(
+  #   TARGET ${exec_name}
+  #   POST_BUILD
+  #   COMMAND PYTHONPATH=$<TARGET_PROPERTY:ivy,BINARY_DIR> ivy_image_gen --name ${exec_name} --objcopy ${CMAKE_OBJCOPY} "$<LIST:TRANSFORM,$<TARGET_PROPERTY:${exec_name},MEM_FILES>,PREPEND,-F>"
+  #   COMMAND_EXPAND_LISTS
+  #   VERBATIM
+  # )
   add_custom_command(
     TARGET ${exec_name}
     POST_BUILD
-    COMMAND PYTHONPATH=$<TARGET_PROPERTY:ivy,BINARY_DIR> ivy_image_gen --name ${exec_name} --objcopy ${CMAKE_OBJCOPY} "$<LIST:TRANSFORM,$<TARGET_PROPERTY:${exec_name},MEM_FILES>,PREPEND,-F>"
+    COMMAND PYTHONPATH=$<TARGET_PROPERTY:ivy,BINARY_DIR> ivy_image_gen --name ${exec_name} --objcopy ${CMAKE_OBJCOPY}
     COMMAND_EXPAND_LISTS
     VERBATIM
   )

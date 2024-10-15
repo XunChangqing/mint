@@ -31,9 +31,9 @@ add_dependencies(ivy ivy_linker_script ivy_app_gen)
 
 # target_compile_definitions(ivy PUBLIC -D__KERNEL__)
 target_compile_definitions(ivy PUBLIC $<$<COMPILE_LANGUAGE:ASM>: -D__ASSEMBLY__>)
-target_compile_options(ivy PUBLIC -fno-strict-overflow -nostdinc -std=gnu99 -fno-builtin -ffreestanding -Wall)
 # -Werror=implicit)
-target_compile_definitions(ivy PUBLIC __KERNEL__ __LITTLE_ENDIAN CONFIG_SMP CONFIG_64BIT CONFIG_ARM64 CONFIG_HAVE_ARM_SMCCC CONFIG_ARM64_LSE_ATOMICS)
+target_compile_definitions(ivy PUBLIC __KERNEL__ __LITTLE_ENDIAN CONFIG_SMP CONFIG_64BIT CONFIG_ARM64 CONFIG_HAVE_ARM_SMCCC CONFIG_ARM64_LSE_ATOMICS CONFIG_FUNCTION_ALIGNMENT=8)
+target_compile_options(ivy PUBLIC -fno-strict-overflow -nostdinc -std=gnu99 -fno-builtin -ffreestanding -Wall -falign-functions=8)
 target_link_options(ivy PUBLIC "LINKER:-T${CMAKE_CURRENT_BINARY_DIR}/ivy.lds,--no-gc-sections,-Bstatic")
 target_link_options(ivy PUBLIC -nostdlib)
 

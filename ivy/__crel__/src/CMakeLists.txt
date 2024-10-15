@@ -7,7 +7,6 @@ target_sources(ivy PRIVATE xrt.c)
 target_sources(ivy PRIVATE print.c)
 target_sources(ivy PRIVATE sync.c)
 
-target_sources(ivy PRIVATE libc/string.c)
 target_sources(ivy PRIVATE libfdt/fdt_addresses.c)
 target_sources(ivy PRIVATE libfdt/fdt_empty_tree.c)
 target_sources(ivy PRIVATE libfdt/fdt_ro.c)

@@ -19,7 +19,7 @@ def Main():
   parser = argparse.ArgumentParser()
   parser.add_argument("--name", help="name", type=str, required=True)
   parser.add_argument("--objcopy", help="objcopy cmd", type=str, required=True)
-  parser.add_argument("--mem_files", "-F", help="mem files", type=str, action='append')
+  # parser.add_argument("--mem_files", "-F", help="mem files", type=str, action='append')
   args = parser.parse_args()
 
   image_file = f'{args.name}.image'
@@ -28,15 +28,15 @@ def Main():
   # 转换为 image 文件
   subprocess.run(objcopy_cmd, shell=True)
 
-  if args.mem_files and len(args.mem_files) > 0:
-    # 附加内存文件
-    mem_files = args.mem_files
-    cat_file = image_file+'.cat'
-    print(f'mem files: {mem_files}')
-    concatenate_files([image_file]+mem_files, cat_file)
-    # 检查文件尺寸,不能超过 MAX_TEXT_SIZE
-    cat_file_p = Path(cat_file)
-    cat_file_p.rename(image_file)
+  # if args.mem_files and len(args.mem_files) > 0:
+  #   # 附加内存文件
+  #   mem_files = args.mem_files
+  #   cat_file = image_file+'.cat'
+  #   print(f'mem files: {mem_files}')
+  #   concatenate_files([image_file]+mem_files, cat_file)
+  #   # 检查文件尺寸,不能超过 MAX_TEXT_SIZE
+  #   cat_file_p = Path(cat_file)
+  #   cat_file_p.rename(image_file)
 
   assert(Path(image_file).stat().st_size < ivy_app_cfg.MAX_TEXT_SIZE)
   # 转换为 uboot 引导文件

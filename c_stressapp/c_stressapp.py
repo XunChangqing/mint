@@ -105,7 +105,7 @@ def Main():
 
     for fr in ivy_app_cfg.FREE_RANGES:
         logger.info(f'addr space region: {fr[0]:#x}, {fr[1]:#x}')
-        addr_space.AddNode(fr[0], fr[1]-fr[0]+1, fr[2])
+        addr_space.AddNode(fr[0], fr[1]-fr[0], fr[2])
 
     parser = argparse.ArgumentParser()
     purslane.dsl.PrepareArgParser(parser)
