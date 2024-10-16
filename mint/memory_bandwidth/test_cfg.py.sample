@@ -1,0 +1,36 @@
+tests = [
+    {
+        'name': 'peak'
+    },
+    {
+        'name': 'cross_numa',
+        'memory_numa': 0,
+        'cpu_from': {
+            0: 2
+        }
+    },
+    {
+        'name': 'cross_numa',
+        'memory_numa': 2,
+        'cpu_from': {
+            0: 2,
+            1: 2,
+        }
+    },
+    {
+        'name': 'cross_numa',
+        'memory_numa': 2,
+        'cpu_from': {
+            0: 4,
+            1: 4,
+        }
+    },    {
+        'name': 'cross_numa',
+        'memory_numa': 2,
+        'cpu_from': {
+            0: 8,
+            1: 8,
+        }
+    }
+
+]

@@ -40,7 +40,8 @@ void xmain() {
 
   for (int i = 0; i < sizeof(job_list) / sizeof(job_list[0]); i++) {
     if (this_cpu == 0) {
-      printf("job %d %s start\n", i, job_list[i].name);
+      printf("job %d %s\n", i, job_list[i].name);
+      printf("job %d start\n", i);
     }
 
     cpu_barrier_wait();

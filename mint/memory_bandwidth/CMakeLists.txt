@@ -17,5 +17,5 @@ get_target_property(ivy_binary_dir ivy BINARY_DIR)
 add_custom_command(
   OUTPUT mb.h
   COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/mb.py
-  DEPENDS mb.py
+  DEPENDS mb.py test_cfg.py
 )

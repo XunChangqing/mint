@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass
 import typing
 import ivy.cfg
+import sys
 
 logger = logging.getLogger('memory_bandwidth')
 
@@ -88,6 +89,7 @@ def bw_cross_numa(cpus: typing.List[ivy.cfg.Cpu], addr_space: AddrSpace, mem_num
 
     return cj
 
+import test_cfg
 
 def main():
     logging.basicConfig(level=logging.INFO)
@@ -100,12 +102,15 @@ def main():
 
     cpus = ivy_app_cfg.cpus
     cjs = []
-    cjs.append(bw_peak(cpus, addr_space))
-    cjs.append(bw_cross_numa(cpus, addr_space, 0, {0: 2}))
 
-    cjs.append(bw_cross_numa(cpus, addr_space, 2, {0: 2, 1: 2}))
-    cjs.append(bw_cross_numa(cpus, addr_space, 2, {0: 4, 1: 4}))
-    cjs.append(bw_cross_numa(cpus, addr_space, 2, {0: 8, 1: 8}))
+    for tt in test_cfg.tests:
+        if tt['name'] == 'peak':
+            cjs.append(bw_peak(cpus, addr_space))
+        elif tt['name'] == 'cross_numa':
+            cjs.append(bw_cross_numa(cpus, addr_space, tt['memory_numa'], tt['cpu_from']))
+        else:
+            logger.critical('illegal test name, available names: peak, cross_numa')
+            sys.exit(1)
 
     with open('mb.h', 'w') as f:
         f.write('struct chip_job job_list[]={\n')

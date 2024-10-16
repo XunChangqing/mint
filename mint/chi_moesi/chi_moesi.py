@@ -6,7 +6,7 @@ from enum import Enum
 
 # from . import moesi
 from mint import moesi
-from mint.moesi import Cacheline
+from mint.models.moesi import Cacheline
 import purslane
 from purslane.dsl import Do, Action, Sequence, Parallel, Select, Run, TypeOverride
 from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt, RandBytes
