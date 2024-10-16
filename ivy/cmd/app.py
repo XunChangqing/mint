@@ -5,6 +5,7 @@ import typing
 from dataclasses import dataclass
 import importlib.util
 from pathlib import Path
+import logging
 
 from ivy.kernel import dt
 from ivy.kernel import mb
@@ -165,6 +166,14 @@ class App:
 
     # 决定活跃处理核，总是所有核都运行
     self._active_cores = dt.cpus
+
+    # map config space and all ranges of all pci host as DEVICE
+    for ph in dt.pci_hosts:
+      lpt.MapRange(ph.cfg_base, ph.cfg_base, ph.cfg_size, pt.PROT_DEVICE_nGnRnE)
+      # allow huge pages, MEM64 is very huge, otherwise mapping will be very slow and
+      #  the result page table will very big, maybe over 64MB
+      for r in ph.ranges:
+        lpt.MapRange(r.cpu_addr, r.cpu_addr, r.size, pt.PROT_DEVICE_nGnRnE)
 
     # 将所有串口映射到线性地址空间，便于访问
     for uart in dt.uarts:
@@ -381,6 +390,7 @@ def ImportModuleByPath(mod_path):
   return module
 
 def Main():
+  logging.basicConfig(level=logging.INFO)
   parser = argparse.ArgumentParser()
   parser.add_argument("--device_tree", help="device tree source file", type=str, required=True)
   parser.add_argument("--cfg", help="config", type=str)
@@ -421,3 +431,5 @@ def Main():
     for fr in app.FreeRanges():
       f.write(f'ivy.cfg.MemoryRange(base={fr[0]:#x}, size={fr[1]-fr[0]:#x}, numa_id={fr[2]:#x}),')
     f.write(']\n')
+
+    f.write(f'device_tree_file = \'{args.device_tree}\'\n')

@@ -34,10 +34,14 @@ class ChipJob:
         return f'{{.name = "{self.name}", .cpu_jobs = {{ {cpu_jobs_str} }} }}'
 
 
-def bw_peak(cpus: typing.List[ivy.cfg.Cpu], addr_space: AddrSpace) -> ChipJob:
-    buf_size = 64*1024*1024
+def bw_peak(cpus: typing.List[ivy.cfg.Cpu], addr_space: AddrSpace, tcfg: dict) -> ChipJob:
+    buf_size = 256*1024*1024
+
+    if 'size_per_cpu' in tcfg:
+        buf_size = tcfg['size_per_cpu']
+
     addr_list = []
-    cj = ChipJob(name='peak memory-copy bandwidth test, each cpu accesses the local memory, both source and destination memories size are 64MB ', cpu_jobs=[])
+    cj = ChipJob(name=f'peak memory-copy bandwidth test, each cpu accesses the local memory, both source and destination memories size are {buf_size:#x} ', cpu_jobs=[])
     for cpu in cpus:
         cpu_mem = addr_space.AllocNid(buf_size*2, 64, cpu.numa_id)
         src = cpu_mem
@@ -51,24 +55,30 @@ def bw_peak(cpus: typing.List[ivy.cfg.Cpu], addr_space: AddrSpace) -> ChipJob:
     return cj
 
 
-def bw_cross_numa(cpus: typing.List[ivy.cfg.Cpu], addr_space: AddrSpace, mem_numa: int, cpu_from) -> ChipJob:
+def bw_cross_numa(cpus: typing.List[ivy.cfg.Cpu], addr_space: AddrSpace, tcfg: dict) -> ChipJob:
     """create bandwidth test job across numa
 
     Parameters
     ----------------
-    mem_numa: the numa id of the target memory
-    cpu_from: dict{int:int}, {0:2, 1:2} means 2 cpus from numa 0, and 2 cpus from numa 1
+    tcfg: job cfg
 
     Returns
     ----------------
     the job
     """
-    buf_size = 64*1024*1024
+
+    buf_size = 256*1024*1024
+
+    if 'size_per_cpu' in tcfg:
+        buf_size = tcfg['size_per_cpu']
+
+    mem_numa = tcfg['memory_numa']
+    cpu_from = tcfg['cpu_from']
 
     cpu_from_str = ','.join(
         [f'{cfv} cpus from numa {cfk}' for cfk, cfv in cpu_from.items()])
     cj = ChipJob(
-        name=f'bw cross numa, the numa id of the memory {mem_numa}, {cpu_from_str}', cpu_jobs=[])
+        name=f'bw cross numa, the numa id of the memory {mem_numa}, {cpu_from_str}, size per cpu {buf_size:#x}', cpu_jobs=[])
 
     addr_list = []
 
@@ -105,9 +115,9 @@ def main():
 
     for tt in test_cfg.tests:
         if tt['name'] == 'peak':
-            cjs.append(bw_peak(cpus, addr_space))
+            cjs.append(bw_peak(cpus, addr_space, tt))
         elif tt['name'] == 'cross_numa':
-            cjs.append(bw_cross_numa(cpus, addr_space, tt['memory_numa'], tt['cpu_from']))
+            cjs.append(bw_cross_numa(cpus, addr_space, tt))
         else:
             logger.critical('illegal test name, available names: peak, cross_numa')
             sys.exit(1)

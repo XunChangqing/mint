@@ -162,3 +162,16 @@ $ dtc -I dtb -O dts qemu.dtb > qemu.dts
  --uvm_repeat_times n 指定aciton重复次数  
  -S n 指定随机种子
 
+# qemu
+多 numa 域命令
+dtb 文件生成
+```sh
+./qemu-system-aarch64 -M virt,secure=true,virtualization=true,dumpdtb=/qemu_image/qemu.dtb -cpu cortex-a76 -smp cpus=8 -m size=4096M -machine hmat=on -object memory-backend-ram,id=mem0,size=1024M -object memory-backend-ram,id=mem1,size=1024M -object memory-backend-ram,id=mem2,size=1024M -object memory-backend-ram,id=mem3,size=1024M -numa node,memdev=mem0,cpus=0-1,nodeid=0,initiator=0 -numa node,memdev=mem1,cpus=2-3,nodeid=1,initiator=1 -numa node,memdev=mem2,cpus=4-5,nodeid=2,initiator=2 -numa node,memdev=mem3,cpus=6-7,nodeid=3,initiator=3
+```
+
+这样生成以后设备数没有 psci 节点，默认使用 SMC 方式可以启动
+
+测试程序运行
+```sh
+./qemu-system-aarch64 -M virt,secure=true,virtualization=true -cpu cortex-a76 -smp cpus=8 -m size=4096M -machine hmat=on -object memory-backend-ram,id=mem0,size=1024M -object memory-backend-ram,id=mem1,size=1024M -object memory-backend-ram,id=mem2,size=1024M -object memory-backend-ram,id=mem3,size=1024M -numa node,memdev=mem0,cpus=0-1,nodeid=0,initiator=0 -numa node,memdev=mem1,cpus=2-3,nodeid=1,initiator=1 -numa node,memdev=mem2,cpus=4-5,nodeid=2,initiator=2 -numa node,memdev=mem3,cpus=6-7,nodeid=3,initiator=3 -nographic -kernel /home/xuncq/stiwork/mint/mint/memory_bandwidth/build/debug/membw.uimage
+```
