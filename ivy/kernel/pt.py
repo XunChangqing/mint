@@ -1,6 +1,10 @@
 from enum import Enum
 from enum import IntFlag
 from dataclasses import dataclass
+import sys
+import logging
+
+logger = logging.getLogger('ivy.kernel.pt')
 
 CONFIG_CPU_BIG_ENDIAN = False
 
@@ -350,7 +354,7 @@ class PageTable:
 
 
 class PageTableAllocator:
-    def __init__(self, ptrs_per_pgd, ptrs_per_pud, ptrs_per_pmd, ptrs_per_pte):
+    def __init__(self, ptrs_per_pgd, ptrs_per_pud, ptrs_per_pmd, ptrs_per_pte, name_prefix: str = ''):
         self._sn = {}
         self._ptr_num = {}
         self._ptr_num[TableType.PGD] = ptrs_per_pgd
@@ -358,12 +362,13 @@ class PageTableAllocator:
         self._ptr_num[TableType.PMD] = ptrs_per_pmd
         self._ptr_num[TableType.PTE] = ptrs_per_pte
         self._tables = []
+        self.name_prefix = name_prefix
 
     def Alloc(self, table_type):
         if table_type not in self._sn:
             self._sn[table_type] = 0
         ret = PageTable(
-            table_type.name+str(self._sn[table_type]), [None]*self._ptr_num[table_type])
+            self.name_prefix + table_type.name+str(self._sn[table_type]), [None]*self._ptr_num[table_type])
         self._sn[table_type] += 1
 
         # 记录所有分配的页表，可以在这里输出
@@ -428,7 +433,8 @@ class Config:
     va_bits: int = 48
 
 class PageTableGen:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, prefix: str = ''):
+        self.name_prefix = prefix
         self._page_shift = cfg.page_shift
         self._va_bits = cfg.va_bits
 
@@ -562,7 +568,7 @@ class PageTableGen:
                 SCTLR_EL1_NTWE | SCTLR_ELx_IESB | SCTLR_EL1_SPAN |
                 ENDIAN_SET_EL1 | SCTLR_EL1_UCI | SCTLR_EL1_RES1)
         
-        self._pt_allocator = PageTableAllocator(self._ptrs_per_pgd, self._ptrs_per_pud, self._ptrs_per_pmd, self._ptrs_per_pte)
+        self._pt_allocator = PageTableAllocator(self._ptrs_per_pgd, self._ptrs_per_pud, self._ptrs_per_pmd, self._ptrs_per_pte, self.name_prefix)
         self._pgd = self._pt_allocator.Alloc(TableType.PGD)
         self._pgdp = PageTablePointer(self._pgd)
 
@@ -983,5 +989,27 @@ class PageTableGen:
         with open(filename, "w") as f:
             f.write("#include \"ivy_cfg.h\"\n")
             f.write(".section \".pt_data\", \"ad\"\n")
-            f.write(".global PGD0\n")
+            f.write(f".global {self.name_prefix}PGD0\n")
             self._pgd.Dump(f)
+
+UVA_START = 0xFFFF000000000000
+class UserPageTable:
+    def __init__(self, page_size: int) -> None:
+        ptg_cfg = Config()
+        if page_size == 64*1024*1024:
+            ptg_cfg.page_shift = 16
+        elif page_size == 16*1024*1024:
+            ptg_cfg.page_shift = 14
+        else:
+            ptg_cfg.page_shift = 12
+        self.ptg = PageTableGen(ptg_cfg, 'USER_')
+    
+    def map_range(self, pa, va, size, prot, flags=0):
+        va = va & 0xFFFFFFFFFFFFFFFF
+        if va < UVA_START:
+            logger.critical(f'user va must be larger than {UVA_START:#x}')
+            sys.exit(1)
+        self.ptg.MapRange(pa, va, size, prot, flags)
+
+    def dumpf(self, filename:str):
+        self.ptg.DumpToFile(filename)

@@ -6,6 +6,7 @@ import typing
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
+import sys
 import logging
 
 logger = logging.getLogger('ivy.dt')
@@ -60,7 +61,12 @@ class PciHost:
     name: str
     cfg_base: int
     cfg_size: int
-    ranges: typing.List[PciRange]
+    io_base: int = 0
+    io_size: int = 0
+    mem32_base: int = 0
+    mem32_size: int = 0
+    mem64_base: int = 0
+    mem64_size: int = 0
 
 
 @dataclass
@@ -147,7 +153,7 @@ def device_populate(dts: str) -> DeviceTree:
         reg = regs[0]
         logger.info(f'pci_host cfg base {reg[0]:#x}, size {reg[1]:#x}')
         pci_host = PciHost(
-            name=node.name, cfg_base=reg[0], cfg_size=reg[1], ranges=[])
+            name=node.name, cfg_base=reg[0], cfg_size=reg[1])
 
         ranges = node.get_ranges()
         for r in ranges:
@@ -157,8 +163,21 @@ def device_populate(dts: str) -> DeviceTree:
             range_size = r[2]
             logger.info(
                 f'range flags {flags:#x}, bus_addr {bus_addr:#x}, cpu_addr {cpu_addr:#x}, size {range_size:#x}')
-            pci_host.ranges.append(
-                PciRange(flags=flags, bus_addr=bus_addr, cpu_addr=cpu_addr, size=range_size))
+            # pci_host.ranges.append(
+            #     PciRange(flags=flags, bus_addr=bus_addr, cpu_addr=cpu_addr, size=range_size))
+            mem_attr = (flags >> 24) & 0x3
+            if mem_attr == 1:
+                pci_host.io_base = cpu_addr
+                pci_host.io_size = range_size
+            elif mem_attr == 2:
+                pci_host.mem32_base = cpu_addr
+                pci_host.mem32_size = range_size
+            elif mem_attr == 3:
+                pci_host.mem64_base = cpu_addr
+                pci_host.mem64_size = range_size
+            else:
+                logger.critical('illegal memory attribute')
+                sys.exit(1)
         
         ret_dt.pci_hosts.append(pci_host)
 

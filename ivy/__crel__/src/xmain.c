@@ -4,6 +4,7 @@
 #include <ivy/sync.h>
 #include <ivy/xrt.h>
 #include <linux/psci.h>
+#include <malloc.h>
 
 #include "dw16550.h"
 #include "ivy_cfg.h"
@@ -110,6 +111,7 @@ void bringup_secondary_cpus() {
 
 void primary_main() {
   int ec = 0;
+  malloc_simple_init();
   printf("check fdt\n");
   // 主核负责检查运行时传入的fdt是否与预先提供的一致
   ec = fdt_check((void*)fdt_pointer);

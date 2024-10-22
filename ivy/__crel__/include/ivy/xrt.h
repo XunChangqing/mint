@@ -2,8 +2,8 @@
 // Copyright 2024. All rights reserved.
 #pragma once
 
-#include <linux/types.h>
 #include <asm/sysreg.h>
+#include <linux/types.h>
 
 // 任意一个核调用都要求所有核结束
 void xrt_exit(unsigned long halt_code);
@@ -24,5 +24,9 @@ static __always_inline unsigned long xrt_get_core_id(void) {
 }
 
 static __always_inline unsigned long xrt_get_timer() {
-  return read_sysreg(CNTPCT_EL0);
+  return read_sysreg(CNTPCT_EL0) / read_sysreg(CNTFRQ_EL0);
+}
+
+static __always_inline unsigned long xrt_timer_get_us() {
+  return 1000 * read_sysreg(CNTPCT_EL0) / read_sysreg(CNTFRQ_EL0);
 }

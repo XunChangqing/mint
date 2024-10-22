@@ -6,6 +6,9 @@ target_sources(ivy PRIVATE of_fdt.c)
 target_sources(ivy PRIVATE xrt.c)
 target_sources(ivy PRIVATE print.c)
 target_sources(ivy PRIVATE sync.c)
+target_sources(ivy PRIVATE malloc_simple.c)
+target_sources(ivy PRIVATE pci/probe.c)
+target_sources(ivy PRIVATE nvme/nvme.c)
 
 target_sources(ivy PRIVATE libfdt/fdt_addresses.c)
 target_sources(ivy PRIVATE libfdt/fdt_empty_tree.c)
@@ -17,3 +20,4 @@ target_sources(ivy PRIVATE libfdt/fdt_wip.c)
 target_sources(ivy PRIVATE libfdt/fdt.c)
 
 target_sources(ivy PRIVATE kernel/locking/qspinlock.c)
+

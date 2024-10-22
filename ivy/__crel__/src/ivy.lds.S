@@ -32,6 +32,10 @@ SECTIONS
     .pt_data : {
         *(.pt_data)
     }
+    . = ALIGN(IVY_CFG_PAGE_SIZE);
+    .user_pt_data : {
+        *(.user_pt_data)
+    }
 	// 处理核栈空间，页对齐
 	. = ALIGN(IVY_CFG_PAGE_SIZE);
 	core_stack_start = .;

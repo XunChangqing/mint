@@ -1,4 +1,7 @@
 target_sources(ivy PRIVATE head.S)
+target_sources(ivy PRIVATE cache.S)
+target_sources(ivy PRIVATE cache.c)
+target_sources(ivy PRIVATE user_pt_data.S)
 target_sources(ivy PRIVATE psci.c)
 target_sources(ivy PRIVATE smccc_call.S)
 target_sources(ivy PRIVATE sysreg.h)

@@ -319,11 +319,12 @@ _enable_mmu:
 	mov x0, #HALT_CODE_PT_GRAN_UNSUPPORTED
 	b.ne _error_halt
 
-	// 使用ttbr0,ttbr1暂时不使用，并且tcr中也配置了低位地址使用ttbr0
-	// ttbr0负责进行ram空间的一一映射，ttbr1后续可以用于进行ram空间按照
-	// 需要的其他页表属性进行二次映射
+	// 使用ttbr0进行默认线性映射
 	ldr	x1, =PGD0
 	msr	ttbr0_el1, x1
+	// ttbr1用于用户自定义映射
+	ldr	x1, =USER_PGD0
+	msr	ttbr1_el1, x1
 	isb
 
 	ldr x1, =SCTLR_EL1_VAL

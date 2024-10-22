@@ -187,18 +187,6 @@ typedef struct {
 
 #define RCUREF_INIT(i)	{ .refcnt = ATOMIC_INIT(i - 1) }
 
-struct list_head {
-	struct list_head *next, *prev;
-};
-
-struct hlist_head {
-	struct hlist_node *first;
-};
-
-struct hlist_node {
-	struct hlist_node *next, **pprev;
-};
-
 struct ustat {
 	__kernel_daddr_t	f_tfree;
 #ifdef CONFIG_ARCH_32BIT_USTAT_F_TINODE
