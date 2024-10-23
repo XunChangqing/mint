@@ -14,6 +14,10 @@
 #include "ivy_cfg.h"
 #include "ivy_dt.h"
 
+// 这两个寄存器可任意读写，作为ram测试
+// __u64 asq;   /* Admin SQ Base Address */
+// __u64 acq;   /* Admin CQ Base Address */
+
 bool find_a_nvme(struct pci_dev *dev, void *user_data) {
   if (pci_dev_is_nvme(dev)) {
     struct pci_dev **pud = (struct pci_dev **)(user_data);

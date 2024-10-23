@@ -1,10 +1,10 @@
 #include <asm/barrier.h>
 #include <ivy/halt_code.h>
+#include <ivy/malloc.h>
 #include <ivy/print.h>
 #include <ivy/sync.h>
 #include <ivy/xrt.h>
 #include <linux/psci.h>
-#include <malloc.h>
 
 #include "dw16550.h"
 #include "ivy_cfg.h"
