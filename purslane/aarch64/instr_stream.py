@@ -175,3 +175,14 @@ class SubProc:
         f.write(f'ENDPROC({self.name})\n\n')
 
 
+def random_delay(reg:Reg, min:int, max:int) -> typing.List:
+    assert(min > 0)
+    num = random.randrange(min, max)
+    inst_seq = []
+    r = reg_name(reg, True)
+    inst_seq.append(v8.VerbatimInst(f'mov {r}, #{num}'))
+    inst_seq.append(v8.VerbatimInst('1:'))
+    inst_seq.append(v8.VerbatimInst(f'sub {r}, {r}, #1'))
+    inst_seq.append(v8.VerbatimInst(f'cmp {r}, #0'))
+    inst_seq.append(v8.VerbatimInst(f'bne 1b'))
+    return inst_seq
