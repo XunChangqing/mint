@@ -1,3 +1,8 @@
+"""
+author: zuoqian
+Copyright 2024. All rights reserved.
+"""
+
 from enum import Enum
 import io
 import typing

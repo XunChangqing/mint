@@ -367,7 +367,7 @@ _found:
 _set_stack:
 	// 所有活跃处理核初始化堆栈地址
 	ldr x0, =core_stack_start
-	// 基地址乘以尺寸，得到每个处理核的基地址
+	// 基地址乘以尺寸，得到每个处理核的基地址，stack 向下生长
 	mov x2, #IVY_CFG_CORE_STACK_SIZE
 	// tpidr_el1 + 1 作为偏移
 	mrs x20, tpidr_el1

@@ -1,3 +1,8 @@
+"""
+author: zuoqian
+Copyright 2024. All rights reserved.
+"""
+
 import random
 import logging
 import argparse
