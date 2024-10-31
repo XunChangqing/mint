@@ -21,11 +21,8 @@ from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandL
 
 logger = logging.getLogger('swo_v2')
 
-
-addr_space = purslane.addr_space.AddrSpace()
-for mr in ivy_app_cfg.free_mem_ranges:
-    addr_space.AddNode(mr.base, mr.size, mr.numa_id)
-nr_cpus = ivy_app_cfg.NR_CPUS
+addr_space: AddrSpace = None
+nr_cpus: int = None
 
 rf = open('rand_proc.S', 'w')
 atexit.register(rf.close)

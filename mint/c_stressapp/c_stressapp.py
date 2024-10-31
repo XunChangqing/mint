@@ -93,7 +93,11 @@ class CStressApp(Action):
                           '#include <ivy/xrt.h>', '#include "worker.h"']
 
     def Activity(self):
-        Do(stressapp.StressApp(self.pages))
+        with (TypeOverride(stressapp.DoFill, DoFill),
+          TypeOverride(stressapp.DoCheck, DoCheck),
+          TypeOverride(stressapp.DoCopy, DoCopy),
+          TypeOverride(stressapp.DoInvert, DoInvert)):
+            Do(stressapp.StressApp(self.pages))
 
 
 def Main():
@@ -140,11 +144,7 @@ def Main():
     pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))
              for i in range(stressapp.PAGE_NUM)]
 
-    with (TypeOverride(stressapp.DoFill, DoFill),
-          TypeOverride(stressapp.DoCheck, DoCheck),
-          TypeOverride(stressapp.DoCopy, DoCopy),
-          TypeOverride(stressapp.DoInvert, DoInvert)):
-        Run(CStressApp(pages), args)
+    Run(CStressApp(pages), args)
 
 
 if __name__ == '__main__':

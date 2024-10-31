@@ -42,15 +42,15 @@ nr_cpus = ivy_app_cfg.NR_CPUS
 
 from mint.models import stressapp
 from mint.c_stressapp import c_stressapp
-import mint.message_passing.mp_v4 as mp
+import mint.ticket_lock.ticket_lock_v4 as tl
 
-mp.addr_space = addr_space
-mp.nr_cpus = nr_cpus
-
+tl.addr_space = addr_space
+tl.nr_cpus = nr_cpus
+tl.counter_pointer = 'counter'
 # 获取目标平台配置
 # import ivy_app_cfg
 
-logger = logging.getLogger('mp_main')
+logger = logging.getLogger('ticket_lock_main')
 
 ITERS = 16
 
@@ -68,7 +68,7 @@ class Entry(Action):
 
         with Parallel():
             Do(c_stressapp.CStressApp(pages))
-            Do(mp.Entry(ITERS))
+            Do(tl.Entry(ITERS))
 
 
 def Main():
@@ -94,7 +94,9 @@ def Main():
         logger.info('stress')
         Run(Entry(), args)
     else:
-        Run(mp.Entry(ITERS), args)
+        entry = tl.Entry(ITERS)
+        entry.c_decl = 'extern uint64_t *counter;'
+        Run(entry, args)
 
 if __name__ == '__main__':
     Main()

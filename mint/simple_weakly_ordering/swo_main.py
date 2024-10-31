@@ -4,20 +4,11 @@
 import ivy_app_cfg
 import logging
 import argparse
-import typing
 import random
-import math
-import atexit
-from dataclasses import dataclass
-from enum import Enum
 import purslane
 from purslane.dsl import Do, Action, Sequence, Parallel, Schedule, Select, Run, TypeOverride
-from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt
 from purslane.addr_space import AddrSpace
-from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
-from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
 import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc
 
 # DDI0487Fc_armv8_arm.pdf
 # K11.6.1 Simple ordering and barrier class
@@ -38,12 +29,37 @@ from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandL
 # v4，指令噪音
 # v5，场景噪音
 
+from mint.models import stressapp
+from mint.c_stressapp import c_stressapp
 import mint.simple_weakly_ordering.swo_v4 as swo
 
-# 获取目标平台配置
-# import ivy_app_cfg
+addr_space = AddrSpace()
+for mr in ivy_app_cfg.free_mem_ranges:
+    addr_space.AddNode(mr.base, mr.size, mr.numa_id)
+nr_cpus = ivy_app_cfg.NR_CPUS
+
+swo.addr_space = addr_space
+swo.nr_cpus = nr_cpus
 
 logger = logging.getLogger('swo_main')
+
+ITERS = 16
+
+class Entry(Action):
+    # combine swo with stressapp
+    def __init__(self, name: str = None) -> None:
+        super().__init__(name)
+
+    def Activity(self):
+        stressapp.BATCH_NUM = int(ITERS/8)
+        stressapp.PAGE_SIZE = 4096
+        stressapp.PAGE_NUM = nr_cpus*6
+        pages = [stressapp.Page(addr_space.AllocRandom(stressapp.PAGE_SIZE, 64))
+                 for i in range(stressapp.PAGE_NUM)]
+
+        with Parallel():
+            Do(c_stressapp.CStressApp(pages))
+            Do(swo.Entry(ITERS))
 
 
 def Main():
@@ -53,6 +69,7 @@ def Main():
 
     parser = argparse.ArgumentParser()
     purslane.dsl.PrepareArgParser(parser)
+    parser.add_argument('--stress', action='store_true')
 
     args = parser.parse_args()
     if args.seed is not None:
@@ -64,7 +81,11 @@ def Main():
 
     args.num_executors = ivy_app_cfg.NR_CPUS
 
-    Run(swo.Entry(), args)
+    if args.stress:
+        logger.info('stress')
+        Run(Entry(), args)
+    else:
+        Run(swo.Entry(ITERS), args)
 
 
 if __name__ == '__main__':

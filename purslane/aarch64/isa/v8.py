@@ -1,5 +1,6 @@
 import logging
 
+import typing
 from enum import Enum, IntEnum, auto
 import vsc.rand_obj
 from purslane.aarch64.isa.instr import Instr as AArch64Instr
@@ -554,9 +555,30 @@ class LdStImm:
 
 # logger.info('after ldrreg')
 
+
+class VerbatimInstScope:
+    def __init__(self):
+        self.inst_seq = []
+
+    def __enter__(self):
+        global verbatim_inst_scope
+        assert (verbatim_inst_scope is None)
+        verbatim_inst_scope = self
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        global verbatim_inst_scope
+        verbatim_inst_scope = None
+
+
+verbatim_inst_scope: VerbatimInstScope = None
+
+
 class VerbatimInst:
     def __init__(self, inst_str: str = None) -> None:
         self.inst_str = inst_str
-    
+        if verbatim_inst_scope is not None:
+            verbatim_inst_scope.inst_seq.append(self)
+
     def convert2asm(self):
         return self.inst_str

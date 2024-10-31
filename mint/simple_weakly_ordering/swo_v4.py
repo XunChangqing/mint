@@ -1,7 +1,6 @@
 # author : zuoqian
 # Copyright 2024. All rights reserved.
 
-import ivy_app_cfg
 import logging
 import argparse
 import typing
@@ -26,11 +25,8 @@ from purslane.aarch64.instr_pkg import Reg, reg_name
 
 logger = logging.getLogger('swo_v4')
 
-
-addr_space = purslane.addr_space.AddrSpace()
-for mr in ivy_app_cfg.free_mem_ranges:
-    addr_space.AddNode(mr.base, mr.size, mr.numa_id)
-nr_cpus = ivy_app_cfg.NR_CPUS
+addr_space: AddrSpace = None
+nr_cpus: int = None
 
 rf = open('rand_proc.S', 'w')
 atexit.register(rf.close)
@@ -39,17 +35,6 @@ rf.write('#include <linux/linkage.h>\n')
 
 # ARM DDI 0487F.c (ID072120)
 # K11. Barrier Litmus Tests
-
-# class MessagePassingAR(Action):
-#     # resolving weakly-ordered message passing by using Acquire and Release
-#     def __init__(self, name: str = None) -> None:
-#         super().__init__(name)
-
-#     def Activity(self):
-#         # init
-#         # parallel sender observer
-#         pass
-
 
 class SwoRsc:
     def __init__(self) -> None:
@@ -294,12 +279,13 @@ class SimpleWeaklyOrdering(Action):
 
 
 class Entry(Action):
-    def __init__(self, name: str = None) -> None:
+    def __init__(self, iters:int = 2, name: str = None) -> None:
         super().__init__(name)
         self.c_headers = ['#include <linux/compiler.h>', '#include "cfunc.h"']
+        self.iters = iters
 
     def Activity(self):
-        for i in range(16):
+        for i in range(self.iters):
             cpus = [i for i in range(nr_cpus)]
             swo_rsc = SwoRsc()
             swo_rsc.alloc(cpus)

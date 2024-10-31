@@ -1,18 +1,18 @@
 cmake_minimum_required(VERSION 3.27)
 
 project(
-  mp
+  ticket_lock_zni
   VERSION 0.1.0
-  DESCRIPTION "barrier litmus test based on ivy kit"
+  DESCRIPTION "ticket lock test based on ivy kit"
   LANGUAGES C ASM
 )
 
 find_package(ivy)
 
-add_ivy_executable(mp)
-target_sources(mp PRIVATE main.c mp.c rand_proc.S)
+add_ivy_executable(ticket_lock_zni)
+target_sources(ticket_lock_zni PRIVATE main.c ticket_lock.c rand_proc.S ../ticket_lock/cfunc.h)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ../ticket_lock/)
 
 # seed random seed
 set(seed_arg "")
@@ -46,7 +46,7 @@ endif()
 get_target_property(ivy_binary_dir ivy BINARY_DIR)
 
 add_custom_command(
-  OUTPUT mp.c rand_proc.S
-  COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/mp_main.py --soc_output mp.c --soc_cooperative ${purslane_debug} ${seed_arg} ${stress_arg}
-  DEPENDS mp_main.py mp_v2.py mp_v3.py mp_v4.py
+  OUTPUT ticket_lock.c rand_proc.S
+  COMMAND PYTHONPATH=${ivy_binary_dir} python ${CMAKE_CURRENT_SOURCE_DIR}/ticket_lock_main.py --soc_output ticket_lock.c --soc_cooperative ${purslane_debug} ${seed_arg} ${stress_arg}
+  DEPENDS ticket_lock_main.py ../ticket_lock/ticket_lock_v4.py
 )

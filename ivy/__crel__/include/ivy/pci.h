@@ -1,5 +1,6 @@
 #pragma once
 
+#include <asm/io.h>
 #include <ivy/pci_regs.h>
 #include <stdint.h>
 
