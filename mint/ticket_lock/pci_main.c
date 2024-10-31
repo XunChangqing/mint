@@ -62,7 +62,7 @@ void use_zni() {
   void *eq_type = reg_base + ZNI_REG_RM_EQ_TYPE;
   void *attr_base = reg_base + ZNI_REG_RM_ATT_BASE;
 
-  counter = (uint64_t *)mpq_type;
+  WRITE_ONCE(counter, (uint64_t *)mpq_type);
 }
 
 void use_nvme() {
@@ -86,8 +86,14 @@ void use_nvme() {
 
 void init() {
   pci_host_probe_all();
+
+#ifdef USE_NVME
+  printf("use nvme\n");
   use_nvme();
-  // use_zni();
+#elif USE_ZNI
+  printf("use zni\n");
+  use_zni();
+#endif
 }
 
 void mango_core_main_func(uint64_t core_id);

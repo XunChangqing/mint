@@ -54,7 +54,7 @@ class TlRsc:
         self.scratch_base = addr_space.AllocRandom(self.scratch_size, 64)
 
     def free(self):
-        if self.addr_counter is int:
+        if isinstance(self.addr_counter, int):
             addr_space.Free(self.addr_counter)
         addr_space.Free(self.addr_lock)
         addr_space.Free(self.scratch_base)
@@ -68,8 +68,11 @@ class TicketLockInit(Action):
     def Body(self):
         addr_counter = self.tl_rsc.addr_counter
         addr_lock = self.tl_rsc.addr_lock
-        self.c_src = f'WRITE_ONCE(*(uint64_t*){addr_counter}, 0);\n'
-        self.c_src += f'WRITE_ONCE(*(uint64_t*){addr_lock}, 0x00000001);\n'
+        if isinstance(addr_counter, int):
+            self.c_src = f'WRITE_ONCE(*(uint64_t*){addr_counter:#x}, 0);\n'
+        else:
+            self.c_src = f'WRITE_ONCE(*(uint64_t*){addr_counter}, 0);\n'
+        self.c_src += f'WRITE_ONCE(*(uint64_t*){addr_lock:#x}, 0x00000001);\n'
 
 
 @vsc.randobj
@@ -166,8 +169,8 @@ class TicketLockIncr(Action):
             ca = reg_name(ca_r, True)
             ca_tmp = reg_name(ca_tmp_r, True)
             sub_proc.add_inst_s(f'ldr {r1}, ={addr_lock:#x}')
-            if addr_counter is int:
-                sub_proc.add_inst_s(f'ldr {ca}, ={addr_counter}')
+            if isinstance(addr_counter, int):
+                sub_proc.add_inst_s(f'ldr {ca}, ={addr_counter:#x}')
             else:
                 sub_proc.add_inst_s(f'ldr {ca}, ={addr_counter}')
                 sub_proc.add_inst_s(f'ldr {ca}, [{ca}]')
@@ -202,7 +205,7 @@ class TicketLockCheck(Action):
         self.tl_rsc = tl_rsc
 
     def Body(self):
-        if self.tl_rsc.addr_counter is int:
+        if isinstance(self.tl_rsc.addr_counter, int):
             self.c_src = f'tl_check((uint64_t*){self.tl_rsc.addr_counter:#x}, {nr_cpus*INCR_TIMES});\n'
         else:
             self.c_src = f'tl_check((uint64_t*){self.tl_rsc.addr_counter}, {nr_cpus*INCR_TIMES});\n'

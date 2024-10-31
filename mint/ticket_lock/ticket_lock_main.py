@@ -79,6 +79,7 @@ def Main():
     parser = argparse.ArgumentParser()
     purslane.dsl.PrepareArgParser(parser)
     parser.add_argument('--stress', action='store_true')
+    parser.add_argument('--pci', action='store_true')
 
     args = parser.parse_args()
     if args.seed is not None:
@@ -90,11 +91,19 @@ def Main():
 
     args.num_executors = ivy_app_cfg.NR_CPUS
 
+    entry = None
     if args.stress:
         logger.info('stress')
-        Run(Entry(), args)
+        entry = Entry()
     else:
-        Run(tl.Entry(ITERS), args)
+        entry = tl.Entry(ITERS)
+
+    if args.pci:
+        logger.info('use counter pointer')
+        tl.counter_pointer = 'counter'
+        entry.c_decl = 'extern uint64_t *counter;'
+    
+    Run(entry, args)
 
 if __name__ == '__main__':
     Main()
