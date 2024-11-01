@@ -9,7 +9,7 @@ import typing
 import sys
 import vsc
 import purslane.aarch64.instr_pkg as aarch64_instr_pkg
-from purslane.aarch64.isa import v8
+from purslane.aarch64 import v8
 from purslane.aarch64.instr_pkg import Reg, reg_name
 
 logger = logging.getLogger('aarch64.instr_stream')

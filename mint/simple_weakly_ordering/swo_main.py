@@ -43,7 +43,7 @@ swo.nr_cpus = nr_cpus
 
 logger = logging.getLogger('swo_main')
 
-ITERS = 16
+ITERS = 128
 
 class Entry(Action):
     # combine swo with stressapp

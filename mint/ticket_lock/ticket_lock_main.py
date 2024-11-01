@@ -13,8 +13,6 @@ from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, Ra
 from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
-import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc
 
 # DDI0487Fc_armv8_arm.pdf
 # K11.2.1 Message passing

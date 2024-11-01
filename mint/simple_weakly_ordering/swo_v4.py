@@ -7,18 +7,14 @@ import typing
 import random
 import math
 import atexit
-from dataclasses import dataclass
 from enum import Enum
-import purslane
 from purslane.dsl import Do, Action, Sequence, Parallel, Schedule, Select, Run, TypeOverride
 from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt
 from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
 import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc
-import vsc
-from purslane.aarch64.instr_pkg import Reg, reg_name
+from purslane.aarch64 import v8
 
 # 获取目标平台配置
 # import ivy_app_cfg
@@ -84,92 +80,66 @@ class SimpleWeaklyOrderingInit(Action):
         self.c_src = f'WRITE_ONCE(*(uint64_t*){addr_a}, 0);\n'
         self.c_src += f'WRITE_ONCE(*(uint64_t*){addr_b}, 0);\n'
 
-
-@vsc.randobj
-class WorkerCfg:
-    def __init__(self) -> None:
-        self.r1 = vsc.rand_enum_t(Reg)
-        self.r2 = vsc.rand_enum_t(Reg)
-        self.r5 = vsc.rand_enum_t(Reg)
-        self.r6 = vsc.rand_enum_t(Reg)
-        self.r7 = vsc.rand_enum_t(Reg)
-        # TODO
-        # number of noise instructions
-        # 激励参数的选择，通过覆盖率驱动，机器学习的方法进行训练？
-        self.num_noise0 = vsc.rand_bit_t(6)
-        self.num_noise1 = vsc.rand_bit_t(6)
-        self.num_noise2 = vsc.rand_bit_t(6)
-
-    @vsc.constraint
-    def worker_cfg_cons(self):
-        vsc.unique(self.r1, self.r2, self.r5, self.r6, self.r7)
-
-
 class SimpleWeaklyOrderingP1(Action):
     def __init__(self, swo_rsc: SwoRsc, name: str = None) -> None:
         super().__init__(name)
         self.swo_rsc = swo_rsc
         self.executor_id = swo_rsc.p1
 
-    def noise_seq(self, rand_cfg: WorkerCfg, num: int) -> typing.List:
-        rls = RandLoadStoreStream()
-        rls.page_addr = self.swo_rsc.p1_scratch_base
-        rls.page_size = self.swo_rsc.p1_scratch_size
-        rls.reserved_rd.extend(
-            [rand_cfg.r1, rand_cfg.r2, rand_cfg.r5, rand_cfg.r6])
-        rls.randomize()
-        return rls.gen_seq(num)
-
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
-        rand_cfg = WorkerCfg()
-        rand_cfg.randomize()
-        r1 = reg_name(rand_cfg.r1, True)
-        r2 = reg_name(rand_cfg.r2, True)
-        r5 = reg_name(rand_cfg.r5, True)
-        r6 = reg_name(rand_cfg.r6, True)
-        r7 = reg_name(rand_cfg.r7, True)
+        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.ALL_REGS, 5)
+        r1 = v8.reg_name(r1_r, True)
+        r2 = v8.reg_name(r2_r, True)
+        r5 = v8.reg_name(r5_r, True)
+        r6 = v8.reg_name(r6_r, True)
+        r7 = v8.reg_name(r7_r, True)
+
         addr_a = self.swo_rsc.addr_a
         addr_b = self.swo_rsc.addr_b
         addr_c = self.swo_rsc.addr_c
 
-        logger.info(f'p1 {r1} {r2} {r5} {r6}')
+        # logger.info(f'p1 {r1} {r2} {r5} {r6} {r7}')
 
-        sub_proc.add_inst_s(f'ldr {r1}, ={addr_a:#x}')
-        sub_proc.add_inst_s(f'ldr {r2}, ={addr_b:#x}')
-        sub_proc.add_inst_s(f'ldr {r5}, ={0x5555555555555555:#x}')
-        sub_proc.add_inst_s(f'ldr {r6}, ={0x6666666666666666:#x}')
-        # R1 <- addr_a
-        # R2 <- addr_b
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr {r1}, ={addr_a:#x}')
+            v8.verbatim(f'ldr {r2}, ={addr_b:#x}')
+            v8.verbatim(f'ldr {r5}, ={0x5555555555555555:#x}')
+            v8.verbatim(f'ldr {r6}, ={0x6666666666666666:#x}')
+            # R1 <- addr_a
+            # R2 <- addr_b
 
-        # noise, reserve r1, r2, r5, r6
-        sub_proc.add_inst_s(f'// noise0 length {rand_cfg.num_noise0}')
-        sub_proc.add_seq(self.noise_seq(rand_cfg, rand_cfg.num_noise0))
-        sub_proc.add_inst_s('// noise end')
+            # noise, reserve r1, r2, r5, r6
+            v8.verbatim(f'// noise0')
+            with v8.reserve([r1_r, r2_r, r5_r, r6_r, r7_r]):
+                for i in range(random.randrange(4, 20)):
+                    v8.arithm_imm()
+            v8.verbatim('// noise end')
 
-        # STR R5, [R1]
-        sub_proc.add_inst_s(f'str {r5}, [{r1}]')
+            # STR R5, [R1]
+            v8.verbatim(f'str {r5}, [{r1}]')
 
-        # noise
-        sub_proc.add_inst_s(f'// noise1 length {rand_cfg.num_noise1}')
-        sub_proc.add_seq(self.noise_seq(rand_cfg, rand_cfg.num_noise1))
-        sub_proc.add_inst_s('// noise end')
+            # noise
+            v8.verbatim(f'// noise1')
+            with v8.reserve([r1_r, r2_r, r5_r, r6_r, r7_r]):
+                for i in range(random.randrange(0, 8)):
+                    v8.arithm_imm()
+            v8.verbatim('// noise end')
 
-        # LDR R6, [R2]
-        sub_proc.add_inst_s(f'ldr {r6}, [{r2}]')
+            # LDR R6, [R2]
+            v8.verbatim(f'ldr {r6}, [{r2}]')
 
-        # noise
-        sub_proc.add_inst_s(f'// noise2 length {rand_cfg.num_noise2}')
-        sub_proc.add_seq(self.noise_seq(rand_cfg, rand_cfg.num_noise2))
-        sub_proc.add_inst_s('// noise end')
+            # noise
+            v8.verbatim(f'// noise2')
+            with v8.reserve([r1_r, r2_r, r5_r, r6_r, r7_r]):
+                for i in range(random.randrange(4, 20)):
+                    v8.arithm_imm()
+            v8.verbatim('// noise end')
 
-        # R0 <- addr_c
-        # STR R6, [R0] for checking
-        sub_proc.add_inst_s(f'ldr {r7}, ={addr_c:#x}')
-        sub_proc.add_inst_s(f'str {r6}, [{r7}]')
-
-        sub_proc.writef(rf)
+            # R0 <- addr_c
+            # STR R6, [R0] for checking
+            v8.verbatim(f'ldr {r7}, ={addr_c:#x}')
+            v8.verbatim(f'str {r6}, [{r7}]')
 
         self.c_src = f'{self.name}_asm_func();\n'
 
@@ -179,66 +149,61 @@ class SimpleWeaklyOrderingP2(Action):
         super().__init__(name)
         self.swo_rsc = swo_rsc
         self.executor_id = swo_rsc.p2
-
-    def noise_seq(self, rand_cfg: WorkerCfg, num: int) -> typing.List:
-        rls = RandLoadStoreStream()
-        rls.page_addr = self.swo_rsc.p1_scratch_base
-        rls.page_size = self.swo_rsc.p1_scratch_size
-        rls.reserved_rd.extend(
-            [rand_cfg.r1, rand_cfg.r2, rand_cfg.r5, rand_cfg.r6])
-        rls.randomize()
-        return rls.gen_seq(num)
     
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
 
-        rand_cfg = WorkerCfg()
-        rand_cfg.randomize()
-        r1 = reg_name(rand_cfg.r1, True)
-        r2 = reg_name(rand_cfg.r2, True)
-        r5 = reg_name(rand_cfg.r5, True)
-        r6 = reg_name(rand_cfg.r6, True)
-        r7 = reg_name(rand_cfg.r7, True)
+        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.ALL_REGS, 5)
+        r1 = v8.reg_name(r1_r, True)
+        r2 = v8.reg_name(r2_r, True)
+        r5 = v8.reg_name(r5_r, True)
+        r6 = v8.reg_name(r6_r, True)
+        r7 = v8.reg_name(r7_r, True)
 
         addr_a = self.swo_rsc.addr_a
         addr_b = self.swo_rsc.addr_b
         addr_d = self.swo_rsc.addr_d
 
-        sub_proc.add_inst_s(f'ldr {r1}, ={addr_a:#x}')
-        sub_proc.add_inst_s(f'ldr {r2}, ={addr_b:#x}')
-        sub_proc.add_inst_s(f'ldr {r5}, ={0x5555555555555555:#x}')
-        sub_proc.add_inst_s(f'ldr {r6}, ={0x6666666666666666:#x}')
-        # R1 <- addr_a
-        # R2 <- addr_b
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr {r1}, ={addr_a:#x}')
+            v8.verbatim(f'ldr {r2}, ={addr_b:#x}')
+            v8.verbatim(f'ldr {r5}, ={0x5555555555555555:#x}')
+            v8.verbatim(f'ldr {r6}, ={0x6666666666666666:#x}')
+            # R1 <- addr_a
+            # R2 <- addr_b
 
-        # noise, reserve r1, r2, r5, r6
-        sub_proc.add_inst_s(f'// noise0 length {rand_cfg.num_noise0}')
-        sub_proc.add_seq(self.noise_seq(rand_cfg, rand_cfg.num_noise0))
-        sub_proc.add_inst_s('// noise end')
+            # noise, reserve r1, r2, r5, r6
+            v8.verbatim(f'// noise0')
+            with v8.reserve([r1_r, r2_r, r5_r, r6_r, r7_r]):
+                for i in range(random.randrange(4, 20)):
+                    v8.arithm_imm()
+            
+            v8.verbatim('// noise end')
 
-        # STR R6, [R2]
-        sub_proc.add_inst_s(f'str {r6}, [{r2}]')
+            # STR R6, [R2]
+            v8.verbatim(f'str {r6}, [{r2}]')
 
-        # noise
-        sub_proc.add_inst_s(f'// noise1 length {rand_cfg.num_noise1}')
-        sub_proc.add_seq(self.noise_seq(rand_cfg, rand_cfg.num_noise1))
-        sub_proc.add_inst_s('// noise end')
+            # noise
+            v8.verbatim(f'// noise1')
+            with v8.reserve([r1_r, r2_r, r5_r, r6_r, r7_r]):
+                for i in range(random.randrange(0, 8)):
+                    v8.arithm_imm()
+            v8.verbatim('// noise end')
 
-        # LDR R5, [R1]
-        sub_proc.add_inst_s(f'ldr {r5}, [{r1}]')
+            # LDR R5, [R1]
+            v8.verbatim(f'ldr {r5}, [{r1}]')
 
-        # noise
-        sub_proc.add_inst_s(f'// noise2 length {rand_cfg.num_noise2}')
-        sub_proc.add_seq(self.noise_seq(rand_cfg, rand_cfg.num_noise2))
-        sub_proc.add_inst_s('// noise end')
+            # noise
+            v8.verbatim(f'// noise2')
+            with v8.reserve([r1_r, r2_r, r5_r, r6_r, r7_r]):
+                for i in range(random.randrange(4, 20)):
+                    v8.arithm_imm()
+            v8.verbatim('// noise end')
 
-        # R0 <- addr_c
-        # STR R6, [R0] for checking
-        sub_proc.add_inst_s(f'ldr {r7}, ={addr_d:#x}')
-        sub_proc.add_inst_s(f'str {r5}, [{r7}]')
-
-        sub_proc.writef(rf)
+            # R0 <- addr_c
+            # STR R6, [R0] for checking
+            v8.verbatim(f'ldr {r7}, ={addr_d:#x}')
+            v8.verbatim(f'str {r5}, [{r7}]')
 
         self.c_src = f'{self.name}_asm_func();\n'
 

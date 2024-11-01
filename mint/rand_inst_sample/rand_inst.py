@@ -1,11 +1,7 @@
-from purslane.aarch64 import instr_stream
-from purslane.aarch64 import instr_pkg
-from purslane.aarch64.isa import v8
-from purslane.aarch64.isa.instr import Instr as AArch64Instr
-import purslane.aarch64.isa.v8
-import vsc
+from purslane.aarch64 import v8
 import logging
 import purslane.addr_space
+import random
 import ivy_app_cfg
 
 logging.basicConfig(level=logging.INFO)
@@ -21,34 +17,19 @@ def main():
 
     with open('rand_proc.S', 'w') as f:
         f.write('#include <linux/linkage.h>\n')
-        f.write('.pushsection .text.rand_proc, "ax"\n')
-        f.write('ENTRY(rand_proc)\n')
 
-        push_stack_str = instr_stream.PushStackStream()
-        push_stack_seq = push_stack_str.gen_seq()
-        pop_stack_str = instr_stream.PopStackStream()
-        pop_stack_seq = pop_stack_str.gen_seq()
+        with v8.proc('rand_proc', f):
+            for i in range(random.randrange(4, 20)):
+                v8.arithm_imm()
 
-        for inst in push_stack_seq:
-            f.write(f'\t{inst.convert2asm()}\n')
+            for i in range(random.randrange(4, 20)):
+                v8.arithm_shifted_reg()
 
-        lsstr = instr_stream.RandLoadStoreStream()
-        lsstr.page_addr = scratch_memory
-        lsstr.page_size = scratch_memory_size
-        lsstr.randomize()
-        seq = lsstr.gen_seq(128)
+            v8.verbatim('mov x1, #1')
 
-        for inst in seq:
-            f.write(f'\t{inst.convert2asm()}\n')
-
-        for inst in pop_stack_seq:
-            f.write(f'\t{inst.convert2asm()}\n')
-
-        f.write('\tret\n')
-
-        f.write('ENDPROC(rand_proc)\n')
-        f.write('.popsection')
-
+            with v8.reserve([v8.Reg.R1]):
+                for i in range(random.randrange(4, 20)):
+                    v8.arithm_imm()
 
 if __name__ == '__main__':
     main()

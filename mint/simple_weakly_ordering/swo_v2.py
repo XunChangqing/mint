@@ -14,7 +14,7 @@ from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
 import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc
+from purslane.aarch64 import v8
 
 # 获取目标平台配置
 # import ivy_app_cfg
@@ -60,27 +60,24 @@ class SimpleWeaklyOrderingP1(Action):
 
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr x1, ={self.addr_a:#x}')
+            v8.verbatim(f'ldr x2, ={self.addr_b:#x}')
+            v8.verbatim(f'ldr x5, ={0x5555555555555555:#x}')
+            v8.verbatim(f'ldr x6, ={0x6666666666666666:#x}')
+            # R1 <- addr_a
+            # R2 <- addr_b
 
-        sub_proc.add_inst_s(f'ldr x1, ={self.addr_a:#x}')
-        sub_proc.add_inst_s(f'ldr x2, ={self.addr_b:#x}')
-        sub_proc.add_inst_s(f'ldr x5, ={0x5555555555555555:#x}')
-        sub_proc.add_inst_s(f'ldr x6, ={0x6666666666666666:#x}')
-        # R1 <- addr_a
-        # R2 <- addr_b
-
-        # STR R5, [R1]
-        sub_proc.add_inst_s(f'str x5, [x1]')
-        # LDR R6, [R2]
-        sub_proc.add_inst_s(f'ldr x6, [x2]')
-        # noise
-        # rf.write(f'')
-        # R0 <- addr_c
-        # STR R6, [R0] for checking
-        sub_proc.add_inst_s(f'ldr x0, ={self.addr_c:#x}')
-        sub_proc.add_inst_s(f'str x6, [x0]')
-
-        sub_proc.writef(rf)
+            # STR R5, [R1]
+            v8.verbatim(f'str x5, [x1]')
+            # LDR R6, [R2]
+            v8.verbatim(f'ldr x6, [x2]')
+            # noise
+            # rf.write(f'')
+            # R0 <- addr_c
+            # STR R6, [R0] for checking
+            v8.verbatim(f'ldr x0, ={self.addr_c:#x}')
+            v8.verbatim(f'str x6, [x0]')
 
         self.c_src = f'{self.name}_asm_func();\n'
 
@@ -94,27 +91,24 @@ class SimpleWeaklyOrderingP2(Action):
 
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr x1, ={self.addr_a:#x}')
+            v8.verbatim(f'ldr x2, ={self.addr_b:#x}')
+            v8.verbatim(f'ldr x5, ={0x5555555555555555:#x}')
+            v8.verbatim(f'ldr x6, ={0x6666666666666666:#x}')
+            # R1 <- addr_a
+            # R2 <- addr_b
 
-        sub_proc.add_inst_s(f'ldr x1, ={self.addr_a:#x}')
-        sub_proc.add_inst_s(f'ldr x2, ={self.addr_b:#x}')
-        sub_proc.add_inst_s(f'ldr x5, ={0x5555555555555555:#x}')
-        sub_proc.add_inst_s(f'ldr x6, ={0x6666666666666666:#x}')
-        # R1 <- addr_a
-        # R2 <- addr_b
-
-        # STR R6, [R2]
-        sub_proc.add_inst_s(f'\tstr x6, [x2]\n')
-        # LDR R5, [R1]
-        sub_proc.add_inst_s(f'\tldr x5, [x1]\n')
-        # noise
-        # rf.write(f'')
-        # R0 <- addr_c
-        # STR R6, [R0] for checking
-        sub_proc.add_inst_s(f'ldr x0, ={self.addr_d:#x}')
-        sub_proc.add_inst_s(f'str x5, [x0]')
-
-        sub_proc.writef(rf)
+            # STR R6, [R2]
+            v8.verbatim(f'\tstr x6, [x2]\n')
+            # LDR R5, [R1]
+            v8.verbatim(f'\tldr x5, [x1]\n')
+            # noise
+            # rf.write(f'')
+            # R0 <- addr_c
+            # STR R6, [R0] for checking
+            v8.verbatim(f'ldr x0, ={self.addr_d:#x}')
+            v8.verbatim(f'str x5, [x0]')
 
         self.c_src = f'{self.name}_asm_func();\n'
 
@@ -155,12 +149,13 @@ class SimpleWeaklyOrdering(Action):
 
 
 class Entry(Action):
-    def __init__(self, name: str = None) -> None:
+    def __init__(self, iters:int = 2, name: str = None) -> None:
         super().__init__(name)
+        self.iters = iters
         self.c_headers = ['#include <linux/compiler.h>', '#include "cfunc.h"']
 
     def Activity(self):
-        for i in range(12):
+        for i in range(self.iters):
             cpus = [i for i in range(nr_cpus)]
             test_cpus = random.sample(cpus, 2)
             p1 = test_cpus[0]

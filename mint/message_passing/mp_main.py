@@ -5,8 +5,6 @@ import ivy_app_cfg
 import logging
 import argparse
 import random
-from dataclasses import dataclass
-from enum import Enum
 import purslane
 from purslane.dsl import Do, Action, Sequence, Parallel, Schedule, Select, Run, TypeOverride
 from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt
@@ -14,7 +12,6 @@ from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
 import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc
 
 # DDI0487Fc_armv8_arm.pdf
 # K11.2.1 Message passing

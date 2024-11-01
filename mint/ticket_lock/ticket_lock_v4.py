@@ -5,21 +5,15 @@ import logging
 import argparse
 import typing
 import random
-import math
 import atexit
-from dataclasses import dataclass
 from enum import Enum
-import purslane
 from purslane.dsl import Do, Action, Sequence, Parallel, Schedule, Select, Run, TypeOverride
 from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt
 from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
 import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc, random_delay, RandDataProcessingStream
-import vsc
-from purslane.aarch64.instr_pkg import Reg, reg_name
-from purslane.aarch64.isa.v8 import VerbatimInst, VerbatimInstScope
+from purslane.aarch64 import v8
 
 # 获取目标平台配置
 # import ivy_app_cfg
@@ -36,6 +30,7 @@ rf.write('#include <linux/linkage.h>\n')
 
 # pointer variable to the counter
 counter_pointer: str = None
+
 
 class TlRsc:
     def __init__(self) -> None:
@@ -75,128 +70,70 @@ class TicketLockInit(Action):
         self.c_src += f'WRITE_ONCE(*(uint64_t*){addr_lock:#x}, 0x00000001);\n'
 
 
-@vsc.randobj
 class WorkerCfg:
     def __init__(self) -> None:
-        self.r0 = vsc.rand_enum_t(Reg)
-        self.r1 = vsc.rand_enum_t(Reg)
-        self.r2 = vsc.rand_enum_t(Reg)
-        self.r5 = vsc.rand_enum_t(Reg)
+        self.r0: v8.Reg = None
+        self.r1: v8.Reg = None
+        self.r2: v8.Reg = None
+        self.r5: v8.Reg = None
+
+        self.num_noise0: int = None
+        self.num_noise1: int = None
+        self.num_noise2: int = None
+
+    def randomize(self):
+        rs = random.sample(v8.ALL_REGS, 4)
+        self.r0 = rs[0]
+        self.r1 = rs[1]
+        self.r2 = rs[2]
+        self.r3 = rs[3]
+
         # TODO
         # number of noise instructions
         # 激励参数的选择，通过覆盖率驱动，机器学习的方法进行训练？
-        self.num_noise0 = vsc.rand_bit_t(6)
-        self.num_noise1 = vsc.rand_bit_t(6)
-        self.num_noise2 = vsc.rand_bit_t(6)
-
-    @vsc.constraint
-    def worker_cfg_cons(self):
-        vsc.unique(self.r0, self.r1, self.r2, self.r5)
+        self.num_noise0 = random.getrandbits(6)
+        self.num_noise1 = random.getrandbits(6)
+        self.num_noise2 = random.getrandbits(6)
 
 
-def lock(x1_r: Reg, w5_r: Reg, w6_r: Reg) -> typing.List:
-    x1 = reg_name(x1_r, True)
-    w5 = reg_name(w5_r, False)
-    w6 = reg_name(w6_r, False)
-    with VerbatimInstScope() as vis:
-        VerbatimInst(f'prfm pstl1keep, [{x1}]')
-        VerbatimInst(f'1:')
-        VerbatimInst(f'ldaxr {w5}, [{x1}]')
-        VerbatimInst(f'add {w5}, {w5}, #0x10000')
-        VerbatimInst(f'stxr {w6}, {w5}, [{x1}]')
-        VerbatimInst(f'cbnz {w6}, 1b')
-        VerbatimInst(f'and {w6}, {w5}, 0xFFFF')
-        VerbatimInst(f'cmp {w6}, {w5}, LSR #16')
-        VerbatimInst(f'beq 3f')
-        VerbatimInst(f'2:')
-        VerbatimInst(f'ldarh {w6}, [{x1}]')
-        VerbatimInst(f'cmp {w6}, {w5}, LSR #16')
-        VerbatimInst(f'bne 2b')
-        VerbatimInst(f'3:')
-
-    return vis.inst_seq
+def lock(x1_r: v8.Reg, w5_r: v8.Reg, w6_r: v8.Reg):
+    x1 = v8.reg_name(x1_r, True)
+    w5 = v8.reg_name(w5_r, False)
+    w6 = v8.reg_name(w6_r, False)
+    v8.verbatim(f'prfm pstl1keep, [{x1}]')
+    v8.verbatim(f'1:')
+    v8.verbatim(f'ldaxr {w5}, [{x1}]')
+    v8.verbatim(f'add {w5}, {w5}, #0x10000')
+    v8.verbatim(f'stxr {w6}, {w5}, [{x1}]')
+    v8.verbatim(f'cbnz {w6}, 1b')
+    v8.verbatim(f'and {w6}, {w5}, 0xFFFF')
+    v8.verbatim(f'cmp {w6}, {w5}, LSR #16')
+    v8.verbatim(f'beq 3f')
+    v8.verbatim(f'2:')
+    v8.verbatim(f'ldarh {w6}, [{x1}]')
+    v8.verbatim(f'cmp {w6}, {w5}, LSR #16')
+    v8.verbatim(f'bne 2b')
+    v8.verbatim(f'3:')
 
 
-def unlock(x1_r: Reg, w6_r: Reg) -> typing.List:
-    x1 = reg_name(x1_r, True)
-    w6 = reg_name(w6_r, False)
-
-    with VerbatimInstScope() as vis:
-        VerbatimInst(f'add {w6}, {w6}, #1')
-        VerbatimInst(f'stlrh {w6}, [{x1}]')
-
-    return vis.inst_seq
+def unlock(x1_r: v8.Reg, w6_r: v8.Reg):
+    x1 = v8.reg_name(x1_r, True)
+    w6 = v8.reg_name(w6_r, False)
+    v8.verbatim(f'add {w6}, {w6}, #1')
+    v8.verbatim(f'stlrh {w6}, [{x1}]')
 
 
 INCR_TIMES = 128
 
 
 class TicketLockIncr(Action):
-    def __init__(self, tl_rsc: TlRsc, core_id: int, name: str = None) -> None:
+    def __init__(self, incr_func: str, core_id: int, name: str = None) -> None:
         super().__init__(name)
-        self.tl_rsc = tl_rsc
+        self.incr_func = incr_func
         self.executor_id = core_id
 
-    # def noise_seq(self, rand_cfg: WorkerCfg, num: int) -> typing.List:
-    #     rls = RandLoadStoreStream()
-    #     rls.page_addr = self.mp_rsc.p1_scratch_base
-    #     rls.page_size = self.mp_rsc.p1_scratch_size
-    #     rls.reserved_rd.extend(
-    #         [rand_cfg.r0, rand_cfg.r1, rand_cfg.r2, rand_cfg.r5])
-    #     rls.randomize()
-    #     return rls.gen_seq(num)
-
     def Body(self):
-        func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
-        # rand_cfg = WorkerCfg()
-        # rand_cfg.randomize()
-        # r0 = reg_name(rand_cfg.r0, True)
-        # r1 = reg_name(rand_cfg.r1, True)
-        # r2 = reg_name(rand_cfg.r2, True)
-        # r5 = reg_name(rand_cfg.r5, True)
-        addr_counter = self.tl_rsc.addr_counter
-        addr_lock = self.tl_rsc.addr_lock
-
-        # sub_proc.add_seq(random_delay(Reg.R1, 5, 64))
-
-        for ii in range(INCR_TIMES):
-            r1_r = Reg.R1
-            # counter address register
-            ca_r = Reg.R2
-            ca_tmp_r = Reg.R3
-            r1 = reg_name(r1_r, True)
-            ca = reg_name(ca_r, True)
-            ca_tmp = reg_name(ca_tmp_r, True)
-            sub_proc.add_inst_s(f'ldr {r1}, ={addr_lock:#x}')
-            if isinstance(addr_counter, int):
-                sub_proc.add_inst_s(f'ldr {ca}, ={addr_counter:#x}')
-            else:
-                sub_proc.add_inst_s(f'ldr {ca}, ={addr_counter}')
-                sub_proc.add_inst_s(f'ldr {ca}, [{ca}]')
-
-            sub_proc.add_seq(lock(Reg.R1, Reg.R5, Reg.R6))
-
-            # increase the counter by 1
-            sub_proc.add_inst_s(f'ldr {ca_tmp}, [{ca}]')
-            sub_proc.add_inst_s(f'add {ca_tmp}, {ca_tmp}, #1')
-            sub_proc.add_inst_s(f'str {ca_tmp}, [{ca}]')
-
-            sub_proc.add_seq(unlock(Reg.R1, Reg.R6))
-
-            # 随机数量数据指令，使用 vsc 生成，速度很慢
-            # use vsc, very slow
-            # rdps = RandDataProcessingStream()
-            # rdps.randomize()
-            # sub_proc.add_seq(rdps.gen_seq(random.randrange(4, 20)))
-
-            # simply append random number of float insts
-            for jj in range(random.randrange(4, 20)):
-                sub_proc.add_inst_s(f'fmul d0, d1, d2')
-
-        sub_proc.writef(rf)
-
-        self.c_src = f'{self.name}_asm_func();\n'
+        self.c_src = f'{self.incr_func}();\n'
 
 
 class TicketLockCheck(Action):
@@ -216,11 +153,53 @@ class TicketLockTest(Action):
         super().__init__(name)
         self.tl_rsc = tl_rsc
 
+    def gen_incr_func(self) -> str:
+        addr_counter = self.tl_rsc.addr_counter
+        addr_lock = self.tl_rsc.addr_lock
+        func_name = f'{self.name}_asm_incr_func'
+        with v8.proc(func_name, rf):
+            # lock address register
+            r1_r = v8.Reg.R1
+            # counter address register
+            ca_r = v8.Reg.R2
+            r1 = v8.reg_name(r1_r, True)
+            ca = v8.reg_name(ca_r, True)
+            # keep two address registers
+
+            for ii in range(INCR_TIMES):
+                ca_tmp_r = v8.Reg.R3
+                ca_tmp = v8.reg_name(ca_tmp_r, True)
+
+                v8.verbatim(f'ldr {r1}, ={addr_lock:#x}')
+                if isinstance(addr_counter, int):
+                    v8.verbatim(f'ldr {ca}, ={addr_counter:#x}')
+                else:
+                    v8.verbatim(f'ldr {ca}, ={addr_counter}')
+                    v8.verbatim(f'ldr {ca}, [{ca}]')
+
+                lock(v8.Reg.R1, v8.Reg.R5, v8.Reg.R6)
+
+                # increase the counter by 1
+                v8.verbatim(f'ldr {ca_tmp}, [{ca}]')
+                v8.verbatim(f'add {ca_tmp}, {ca_tmp}, #1')
+                v8.verbatim(f'str {ca_tmp}, [{ca}]')
+
+                unlock(v8.Reg.R1, v8.Reg.R6)
+
+                # do not corrupt the two address registers
+                with v8.reserve([r1_r, ca_r]):
+                    for jj in range(random.randrange(4, 20)):
+                        v8.arithm_imm()
+        return func_name
+
     def Activity(self):
         Do(TicketLockInit(self.tl_rsc))
+        # all cores share the same code increasing the counter
+        # otherwise the generated code would be huge, especially when the number of cores is big
+        func_name = self.gen_incr_func()
         with Parallel():
             for i in range(nr_cpus):
-                Do(TicketLockIncr(self.tl_rsc, i))
+                Do(TicketLockIncr(func_name, i))
         Do(TicketLockCheck(self.tl_rsc))
 
 

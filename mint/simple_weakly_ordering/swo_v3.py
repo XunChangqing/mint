@@ -17,9 +17,7 @@ from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
 import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc
-import vsc
-from purslane.aarch64.instr_pkg import Reg, reg_name
+from purslane.aarch64 import v8
 
 # 获取目标平台配置
 # import ivy_app_cfg
@@ -58,21 +56,6 @@ class SimpleWeaklyOrderingInit(Action):
         self.c_src = f'WRITE_ONCE(*(uint64_t*){self.addr_a}, 0);\n'
         self.c_src += f'WRITE_ONCE(*(uint64_t*){self.addr_b}, 0);\n'
 
-
-@vsc.randobj
-class WorkerCfg:
-    def __init__(self) -> None:
-        self.r1 = vsc.rand_enum_t(Reg)
-        self.r2 = vsc.rand_enum_t(Reg)
-        self.r5 = vsc.rand_enum_t(Reg)
-        self.r6 = vsc.rand_enum_t(Reg)
-        self.r7 = vsc.rand_enum_t(Reg)
-
-    @vsc.constraint
-    def worker_cfg_cons(self):
-        vsc.unique(self.r1, self.r2, self.r5, self.r6, self.r7)
-
-
 class SimpleWeaklyOrderingP1(Action):
     def __init__(self, addr_a: int, addr_b: int, addr_c: int, name: str = None) -> None:
         super().__init__(name)
@@ -82,34 +65,31 @@ class SimpleWeaklyOrderingP1(Action):
 
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
-        rand_cfg = WorkerCfg()
-        rand_cfg.randomize()
-        r1 = reg_name(rand_cfg.r1, True)
-        r2 = reg_name(rand_cfg.r2, True)
-        r5 = reg_name(rand_cfg.r5, True)
-        r6 = reg_name(rand_cfg.r6, True)
-        r7 = reg_name(rand_cfg.r7, True)
+        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.ALL_REGS, 5)
+        r1 = v8.reg_name(r1_r, True)
+        r2 = v8.reg_name(r2_r, True)
+        r5 = v8.reg_name(r5_r, True)
+        r6 = v8.reg_name(r6_r, True)
+        r7 = v8.reg_name(r7_r, True)
 
-        sub_proc.add_inst_s(f'ldr {r1}, ={self.addr_a:#x}')
-        sub_proc.add_inst_s(f'ldr {r2}, ={self.addr_b:#x}')
-        sub_proc.add_inst_s(f'ldr {r5}, ={0x5555555555555555:#x}')
-        sub_proc.add_inst_s(f'ldr {r6}, ={0x6666666666666666:#x}')
-        # R1 <- addr_a
-        # R2 <- addr_b
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr {r1}, ={self.addr_a:#x}')
+            v8.verbatim(f'ldr {r2}, ={self.addr_b:#x}')
+            v8.verbatim(f'ldr {r5}, ={0x5555555555555555:#x}')
+            v8.verbatim(f'ldr {r6}, ={0x6666666666666666:#x}')
+            # R1 <- addr_a
+            # R2 <- addr_b
 
-        # STR R5, [R1]
-        sub_proc.add_inst_s(f'str {r5}, [{r1}]')
-        # LDR R6, [R2]
-        sub_proc.add_inst_s(f'ldr {r6}, [{r2}]')
-        # noise
-        # rf.write(f'')
-        # R0 <- addr_c
-        # STR R6, [R0] for checking
-        sub_proc.add_inst_s(f'ldr {r7}, ={self.addr_c:#x}')
-        sub_proc.add_inst_s(f'str {r6}, [{r7}]')
-
-        sub_proc.writef(rf)
+            # STR R5, [R1]
+            v8.verbatim(f'str {r5}, [{r1}]')
+            # LDR R6, [R2]
+            v8.verbatim(f'ldr {r6}, [{r2}]')
+            # noise
+            # rf.write(f'')
+            # R0 <- addr_c
+            # STR R6, [R0] for checking
+            v8.verbatim(f'ldr {r7}, ={self.addr_c:#x}')
+            v8.verbatim(f'str {r6}, [{r7}]')
 
         self.c_src = f'{self.name}_asm_func();\n'
 
@@ -123,35 +103,31 @@ class SimpleWeaklyOrderingP2(Action):
 
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
+        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.ALL_REGS, 5)
+        r1 = v8.reg_name(r1_r, True)
+        r2 = v8.reg_name(r2_r, True)
+        r5 = v8.reg_name(r5_r, True)
+        r6 = v8.reg_name(r6_r, True)
+        r7 = v8.reg_name(r7_r, True)
 
-        rand_cfg = WorkerCfg()
-        rand_cfg.randomize()
-        r1 = reg_name(rand_cfg.r1, True)
-        r2 = reg_name(rand_cfg.r2, True)
-        r5 = reg_name(rand_cfg.r5, True)
-        r6 = reg_name(rand_cfg.r6, True)
-        r7 = reg_name(rand_cfg.r7, True)
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr {r1}, ={self.addr_a:#x}')
+            v8.verbatim(f'ldr {r2}, ={self.addr_b:#x}')
+            v8.verbatim(f'ldr {r5}, ={0x5555555555555555:#x}')
+            v8.verbatim(f'ldr {r6}, ={0x6666666666666666:#x}')
+            # R1 <- addr_a
+            # R2 <- addr_b
 
-        sub_proc.add_inst_s(f'ldr {r1}, ={self.addr_a:#x}')
-        sub_proc.add_inst_s(f'ldr {r2}, ={self.addr_b:#x}')
-        sub_proc.add_inst_s(f'ldr {r5}, ={0x5555555555555555:#x}')
-        sub_proc.add_inst_s(f'ldr {r6}, ={0x6666666666666666:#x}')
-        # R1 <- addr_a
-        # R2 <- addr_b
-
-        # STR R6, [R2]
-        sub_proc.add_inst_s(f'str {r6}, [{r2}]')
-        # LDR R5, [R1]
-        sub_proc.add_inst_s(f'ldr {r5}, [{r1}]')
-        # noise
-        # rf.write(f'')
-        # R0 <- addr_c
-        # STR R6, [R0] for checking
-        sub_proc.add_inst_s(f'ldr {r7}, ={self.addr_d:#x}')
-        sub_proc.add_inst_s(f'str {r5}, [{r7}]')
-
-        sub_proc.writef(rf)
+            # STR R6, [R2]
+            v8.verbatim(f'str {r6}, [{r2}]')
+            # LDR R5, [R1]
+            v8.verbatim(f'ldr {r5}, [{r1}]')
+            # noise
+            # rf.write(f'')
+            # R0 <- addr_c
+            # STR R6, [R0] for checking
+            v8.verbatim(f'ldr {r7}, ={self.addr_d:#x}')
+            v8.verbatim(f'str {r5}, [{r7}]')
 
         self.c_src = f'{self.name}_asm_func();\n'
 
@@ -202,12 +178,13 @@ class SimpleWeaklyOrdering(Action):
 
 
 class Entry(Action):
-    def __init__(self, name: str = None) -> None:
+    def __init__(self, iters:int = 2, name: str = None) -> None:
         super().__init__(name)
+        self.iters = iters
         self.c_headers = ['#include <linux/compiler.h>', '#include "cfunc.h"']
 
     def Activity(self):
-        for i in range(12):
+        for i in range(self.iters):
             cpus = [i for i in range(nr_cpus)]
             test_cpus = random.sample(cpus, 2)
             p1 = test_cpus[0]

@@ -8,18 +8,13 @@ import typing
 import random
 import math
 import atexit
-from dataclasses import dataclass
 from enum import Enum
-import purslane
 from purslane.dsl import Do, Action, Sequence, Parallel, Schedule, Select, Run, TypeOverride
 from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt
 from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
-import purslane.dsl
-from purslane.aarch64.instr_stream import PushStackStream, PopStackStream, RandLoadStoreStream, SubProc
-import vsc
-from purslane.aarch64.instr_pkg import Reg, reg_name
+from purslane.aarch64 import v8
 
 # 获取目标平台配置
 # import ivy_app_cfg
@@ -86,22 +81,19 @@ class MessagePassingP1(Action):
 
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
         addr_data = self.mp_rsc.addr_data
         addr_flag = self.mp_rsc.addr_flag
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr x1, ={addr_data:#x}')
+            v8.verbatim(f'ldr x2, ={addr_flag:#x}')
+            v8.verbatim(f'mov x5, #0x55')
+            v8.verbatim(f'mov x0, #1')
 
-        sub_proc.add_inst_s(f'ldr x1, ={addr_data:#x}')
-        sub_proc.add_inst_s(f'ldr x2, ={addr_flag:#x}')
-        sub_proc.add_inst_s(f'mov x5, #0x55')
-        sub_proc.add_inst_s(f'mov x0, #1')
+            # STR R5, [R1] sets new data
+            v8.verbatim(f'str x5, [x1]')
 
-        # STR R5, [R1] sets new data
-        sub_proc.add_inst_s(f'str x5, [x1]')
-
-        # STL R0, [R2] sends flag
-        sub_proc.add_inst_s(f'str x0, [x2]')
-
-        sub_proc.writef(rf)
+            # STL R0, [R2] sends flag
+            v8.verbatim(f'str x0, [x2]')
 
         self.c_src = f'{self.name}_asm_func();\n'
 
@@ -114,32 +106,28 @@ class MessagePassingP2(Action):
 
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        sub_proc = SubProc(func_name)
-
         addr_data = self.mp_rsc.addr_data
         addr_flag = self.mp_rsc.addr_flag
+        with v8.proc(func_name, rf):
+            v8.verbatim(f'ldr x1, ={addr_data:#x}')
+            v8.verbatim(f'ldr x2, ={addr_flag:#x}')
 
-        sub_proc.add_inst_s(f'ldr x1, ={addr_data:#x}')
-        sub_proc.add_inst_s(f'ldr x2, ={addr_flag:#x}')
+            # WATI_ACQ([R2] == 1)
+            # use r0 as the tmp register, it has not to be reserved for noise sequences.
+            v8.verbatim('1:')
+            v8.verbatim(f'ldr x0, [x2]')
+            v8.verbatim(f'cmp x0, #1')
+            v8.verbatim(f'bne 1b')
 
-        # WATI_ACQ([R2] == 1)
-        # use r0 as the tmp register, it has not to be reserved for noise sequences.
-        sub_proc.add_inst_s('1:')
-        sub_proc.add_inst_s(f'ldr x0, [x2]')
-        sub_proc.add_inst_s(f'cmp x0, #1')
-        sub_proc.add_inst_s(f'bne 1b')
+            # LDR R5, [R1]
+            v8.verbatim(f'ldr x5, [x1]')
 
-        # LDR R5, [R1]
-        sub_proc.add_inst_s(f'ldr x5, [x1]')
-
-        # checking
-        sub_proc.add_inst_s(f'cmp x5, #0x55')
-        sub_proc.add_inst_s(f'beq 1f')
-        sub_proc.add_inst_s(f'mov x0, #1')
-        sub_proc.add_inst_s(f'bl xrt_exit')
-        sub_proc.add_inst_s(f'1:')
-
-        sub_proc.writef(rf)
+            # checking
+            v8.verbatim(f'cmp x5, #0x55')
+            v8.verbatim(f'beq 1f')
+            v8.verbatim(f'mov x0, #1')
+            v8.verbatim(f'bl xrt_exit')
+            v8.verbatim(f'1:')
 
         self.c_src = f'{self.name}_asm_func();\n'
 
