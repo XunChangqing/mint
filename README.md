@@ -66,7 +66,7 @@ url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 ``` 
 
 ## 4. aarch64_moesi使用
-在mint/aarch64_moesi目录下包含3个文件：`aarch64_moesi.py`、`main.c`、`CMakeLists.txt`  
+在lily/aarch64_moesi目录下包含3个文件：`aarch64_moesi.py`、`main.c`、`CMakeLists.txt`  
 `aarch64_moesi.py`基于purslane来生成测试激励  
 ### qemu
 * qemu设备树文件的使用可以用qemu的dumpdtb来生成,通过dtc来将dtb转换成dts
@@ -76,7 +76,7 @@ $ dtc -I dtb -O dts qemu.dtb > qemu.dts
 ```
 * qemu使用
 ```
-  $ cd mint/aarch64_moesi
+  $ cd lily/aarch64_moesi
   $ ivy build --dt qemu.dts --tc ../toolchains/aarch64-none-linux-gnu.cmake --ic ../ivy_cfg/emu.py
   $ cmake --preset debug
   $ cmake --build --preset debug
@@ -141,7 +141,7 @@ $ dtc -I dtb -O dts qemu.dtb > qemu.dts
 ```  
 * 软仿使用
 ```
-  $ cd mint/aarch64_moesi
+  $ cd lily/aarch64_moesi
   $ ivy build --dt sim.dts --tc ../toolchains/aarch64-none-linux-gnu.cmake --ic ../ivy_cfg/sim.py
   $ cmake --preset debug
   $ cmake --build --preset debug
@@ -151,9 +151,9 @@ $ dtc -I dtb -O dts qemu.dtb > qemu.dts
 --ic 是指定生成激励时需要的配置，sim.py适用于硬仿和qemu
 
 ## 5. chi_moesi使用
-在mint/chi_moesi的目录有:chi_moesi.py，调用py文件就可以生成sv文件
+在lily/chi_moesi的目录有:chi_moesi.py，调用py文件就可以生成sv文件
 ```
-  $ cd mint/chi_moesi
+  $ cd lily/chi_moesi
   $ python chi_moesi.py --uvm_executor_name CdnChiExecutor --num_executors --uvm_output chi_test_case.sv --uvm_repeat_times=20 -S 13
 ```
  --uvm_executor_name executor 指定输出uvm源码中使用executor的类型名  
@@ -173,5 +173,5 @@ dtb 文件生成
 
 测试程序运行
 ```sh
-./qemu-system-aarch64 -M virt,secure=true,virtualization=true -cpu cortex-a76 -smp cpus=8 -m size=4096M -machine hmat=on -object memory-backend-ram,id=mem0,size=1024M -object memory-backend-ram,id=mem1,size=1024M -object memory-backend-ram,id=mem2,size=1024M -object memory-backend-ram,id=mem3,size=1024M -numa node,memdev=mem0,cpus=0-1,nodeid=0,initiator=0 -numa node,memdev=mem1,cpus=2-3,nodeid=1,initiator=1 -numa node,memdev=mem2,cpus=4-5,nodeid=2,initiator=2 -numa node,memdev=mem3,cpus=6-7,nodeid=3,initiator=3 -nographic -kernel /home/xuncq/stiwork/mint/mint/memory_bandwidth/build/debug/membw.uimage
+./qemu-system-aarch64 -M virt,secure=true,virtualization=true -cpu cortex-a76 -smp cpus=8 -m size=4096M -machine hmat=on -object memory-backend-ram,id=mem0,size=1024M -object memory-backend-ram,id=mem1,size=1024M -object memory-backend-ram,id=mem2,size=1024M -object memory-backend-ram,id=mem3,size=1024M -numa node,memdev=mem0,cpus=0-1,nodeid=0,initiator=0 -numa node,memdev=mem1,cpus=2-3,nodeid=1,initiator=1 -numa node,memdev=mem2,cpus=4-5,nodeid=2,initiator=2 -numa node,memdev=mem3,cpus=6-7,nodeid=3,initiator=3 -nographic -kernel /home/xuncq/stiwork/mint/lily/memory_bandwidth/build/debug/membw.uimage
 ```

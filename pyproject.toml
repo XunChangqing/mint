@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [
     {include = "ivy"},
     {include = "purslane"},
-    {include = "mint"}
+    {include = "lily"}
 ]
 
 [tool.poetry.dependencies]

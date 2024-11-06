@@ -29,9 +29,9 @@ import purslane.dsl
 # v4，指令噪音
 # v5，场景噪音
 
-from mint.models import stressapp
-from mint.c_stressapp import c_stressapp
-import mint.simple_weakly_ordering.swo_v4 as swo
+from lily.models import stressapp
+from lily.c_stressapp import c_stressapp
+import lily.simple_weakly_ordering.swo_v4 as swo
 
 addr_space = AddrSpace()
 for mr in ivy_app_cfg.free_mem_ranges:

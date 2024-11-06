@@ -37,9 +37,9 @@ for mr in ivy_app_cfg.free_mem_ranges:
     addr_space.AddNode(mr.base, mr.size, mr.numa_id)
 nr_cpus = ivy_app_cfg.NR_CPUS
 
-from mint.models import stressapp
-from mint.c_stressapp import c_stressapp
-import mint.addr_dep_object_construction.adoc_v4 as adoc
+from lily.models import stressapp
+from lily.c_stressapp import c_stressapp
+import lily.addr_dep_object_construction.adoc_v4 as adoc
 
 adoc.addr_space = addr_space
 adoc.nr_cpus = nr_cpus
