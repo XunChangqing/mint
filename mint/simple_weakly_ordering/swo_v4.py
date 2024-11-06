@@ -88,7 +88,7 @@ class SimpleWeaklyOrderingP1(Action):
 
     def Body(self):
         func_name = f'{self.name}_asm_func'
-        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.ALL_REGS, 5)
+        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.GPRS, 5)
         r1 = v8.reg_name(r1_r, True)
         r2 = v8.reg_name(r2_r, True)
         r5 = v8.reg_name(r5_r, True)
@@ -153,7 +153,7 @@ class SimpleWeaklyOrderingP2(Action):
     def Body(self):
         func_name = f'{self.name}_asm_func'
 
-        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.ALL_REGS, 5)
+        r1_r, r2_r, r5_r, r6_r, r7_r = random.sample(v8.GPRS, 5)
         r1 = v8.reg_name(r1_r, True)
         r2 = v8.reg_name(r2_r, True)
         r5 = v8.reg_name(r5_r, True)

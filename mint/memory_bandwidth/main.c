@@ -15,8 +15,6 @@
 
 // 所有cpu依次进行memory test
 
-// uint64_t st = xrt_get_timer();
-
 struct job {
   size_t size;
   void *src;
@@ -45,7 +43,7 @@ void xmain() {
     }
 
     cpu_barrier_wait();
-    uint64_t st = xrt_get_timer();
+    uint64_t st = xrt_timer_get_clk();
 
     struct job *this_cpu_job = &(job_list[i].cpu_jobs[this_cpu]);
 
@@ -54,7 +52,7 @@ void xmain() {
     }
 
     cpu_barrier_wait();
-    uint64_t et = xrt_get_timer();
+    uint64_t et = xrt_timer_get_clk();
 
     if (this_cpu == 0) {
       printf("job %d end, time 0x%lx\n", i, et - st);

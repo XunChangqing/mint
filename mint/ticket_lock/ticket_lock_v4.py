@@ -12,8 +12,8 @@ from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, Ra
 from purslane.addr_space import AddrSpace
 from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
 from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
-import purslane.dsl
 from purslane.aarch64 import v8
+from purslane.aarch64 import locks
 
 # 获取目标平台配置
 # import ivy_app_cfg
@@ -70,59 +70,6 @@ class TicketLockInit(Action):
         self.c_src += f'WRITE_ONCE(*(uint64_t*){addr_lock:#x}, 0x00000001);\n'
 
 
-class WorkerCfg:
-    def __init__(self) -> None:
-        self.r0: v8.Reg = None
-        self.r1: v8.Reg = None
-        self.r2: v8.Reg = None
-        self.r5: v8.Reg = None
-
-        self.num_noise0: int = None
-        self.num_noise1: int = None
-        self.num_noise2: int = None
-
-    def randomize(self):
-        rs = random.sample(v8.ALL_REGS, 4)
-        self.r0 = rs[0]
-        self.r1 = rs[1]
-        self.r2 = rs[2]
-        self.r3 = rs[3]
-
-        # TODO
-        # number of noise instructions
-        # 激励参数的选择，通过覆盖率驱动，机器学习的方法进行训练？
-        self.num_noise0 = random.getrandbits(6)
-        self.num_noise1 = random.getrandbits(6)
-        self.num_noise2 = random.getrandbits(6)
-
-
-def lock(x1_r: v8.Reg, w5_r: v8.Reg, w6_r: v8.Reg):
-    x1 = v8.reg_name(x1_r, True)
-    w5 = v8.reg_name(w5_r, False)
-    w6 = v8.reg_name(w6_r, False)
-    v8.verbatim(f'prfm pstl1keep, [{x1}]')
-    v8.verbatim(f'1:')
-    v8.verbatim(f'ldaxr {w5}, [{x1}]')
-    v8.verbatim(f'add {w5}, {w5}, #0x10000')
-    v8.verbatim(f'stxr {w6}, {w5}, [{x1}]')
-    v8.verbatim(f'cbnz {w6}, 1b')
-    v8.verbatim(f'and {w6}, {w5}, 0xFFFF')
-    v8.verbatim(f'cmp {w6}, {w5}, LSR #16')
-    v8.verbatim(f'beq 3f')
-    v8.verbatim(f'2:')
-    v8.verbatim(f'ldarh {w6}, [{x1}]')
-    v8.verbatim(f'cmp {w6}, {w5}, LSR #16')
-    v8.verbatim(f'bne 2b')
-    v8.verbatim(f'3:')
-
-
-def unlock(x1_r: v8.Reg, w6_r: v8.Reg):
-    x1 = v8.reg_name(x1_r, True)
-    w6 = v8.reg_name(w6_r, False)
-    v8.verbatim(f'add {w6}, {w6}, #1')
-    v8.verbatim(f'stlrh {w6}, [{x1}]')
-
-
 INCR_TIMES = 128
 
 
@@ -159,35 +106,39 @@ class TicketLockTest(Action):
         func_name = f'{self.name}_asm_incr_func'
         with v8.proc(func_name, rf):
             # lock address register
-            r1_r = v8.Reg.R1
+            r1 = v8.Reg.R1
             # counter address register
             ca_r = v8.Reg.R2
-            r1 = v8.reg_name(r1_r, True)
-            ca = v8.reg_name(ca_r, True)
             # keep two address registers
 
             for ii in range(INCR_TIMES):
-                ca_tmp_r = v8.Reg.R3
-                ca_tmp = v8.reg_name(ca_tmp_r, True)
+                cnt_r = v8.Reg.R3
 
-                v8.verbatim(f'ldr {r1}, ={addr_lock:#x}')
+                # v8.verbatim(f'ldr {r1}, ={addr_lock:#x}')
+                v8.ldr64_pseudo(r1, addr_lock)
+
                 if isinstance(addr_counter, int):
-                    v8.verbatim(f'ldr {ca}, ={addr_counter:#x}')
+                    # v8.verbatim(f'ldr {ca}, ={addr_counter:#x}')
+                    v8.ldr64_pseudo(ca_r, addr_counter)
                 else:
-                    v8.verbatim(f'ldr {ca}, ={addr_counter}')
-                    v8.verbatim(f'ldr {ca}, [{ca}]')
+                    v8.ldr64_pseudo(ca_r, addr_counter)
+                    v8.ldr64_imm_post(ca_r, ca_r)
+                    # v8.verbatim(f'ldr {ca}, ={addr_counter}')
+                    # v8.verbatim(f'ldr {ca}, [{ca}]')
 
-                lock(v8.Reg.R1, v8.Reg.R5, v8.Reg.R6)
+                locks.ticket_lock_acq_excl_r32(v8.Reg.R1, v8.Reg.R5, v8.Reg.R6)
+                # lock(v8.Reg.R1, v8.Reg.R5, v8.Reg.R6)
 
                 # increase the counter by 1
-                v8.verbatim(f'ldr {ca_tmp}, [{ca}]')
-                v8.verbatim(f'add {ca_tmp}, {ca_tmp}, #1')
-                v8.verbatim(f'str {ca_tmp}, [{ca}]')
+                v8.ldr64_imm_post(cnt_r, ca_r)
+                v8.add64_imm(cnt_r, cnt_r, 1)
+                v8.str64_imm_post(cnt_r, ca_r)
 
-                unlock(v8.Reg.R1, v8.Reg.R6)
+                locks.ticket_unlock_rel_excl_r32(v8.Reg.R1, v8.Reg.R6)
+                # unlock(v8.Reg.R1, v8.Reg.R6)
 
                 # do not corrupt the two address registers
-                with v8.reserve([r1_r, ca_r]):
+                with v8.reserve([r1, ca_r]):
                     for jj in range(random.randrange(4, 20)):
                         v8.arithm_imm()
         return func_name

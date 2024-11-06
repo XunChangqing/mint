@@ -28,8 +28,8 @@
 #define IO_TIMEOUT 30
 #define MAX_PRP_POOL 512
 
-#define get_timer(x) xrt_get_timer()
-#define timer_get_us() xrt_get_timer()
+#define get_timer(x) xrt_timer_get_ms()
+#define timer_get_us() xrt_timer_get_us()
 // #define timer_get_us() xrt_timer_get_us()
 
 static int nvme_wait_csts(struct nvme_dev *dev, u32 mask, u32 val) {

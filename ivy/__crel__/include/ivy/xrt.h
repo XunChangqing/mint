@@ -23,10 +23,26 @@ static __always_inline unsigned long xrt_get_core_id(void) {
   return off;
 }
 
-static __always_inline unsigned long xrt_get_timer() {
-  return read_sysreg(CNTPCT_EL0) / read_sysreg(CNTFRQ_EL0);
+static __always_inline unsigned long xrt_timer_get_clk() {
+  return read_sysreg(CNTPCT_EL0);
+}
+
+static __always_inline double xrt_timer_get_sec() {
+  uint64_t cnt = read_sysreg(CNTPCT_EL0);
+  uint64_t freq = read_sysreg(CNTFRQ_EL0);
+  freq = freq / (1000 * 1000);
+  double us = (double)cnt / (double)(freq);
+  return us * (1000 * 1000.);
+}
+
+static __always_inline unsigned long xrt_timer_get_ms() {
+  uint64_t freq = read_sysreg(CNTFRQ_EL0);
+  freq = freq / 1000;
+  return read_sysreg(CNTPCT_EL0) / freq;
 }
 
 static __always_inline unsigned long xrt_timer_get_us() {
-  return 1000 * read_sysreg(CNTPCT_EL0) / read_sysreg(CNTFRQ_EL0);
+  uint64_t freq = read_sysreg(CNTFRQ_EL0);
+  freq = freq / (1000 * 1000);
+  return read_sysreg(CNTPCT_EL0) / freq;
 }

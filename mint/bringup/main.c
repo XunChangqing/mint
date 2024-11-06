@@ -99,11 +99,11 @@ static volatile uint64_t use_result_dummy;
 
 void timer_test() {
   printf("timer_test on cpu: %d\n", atomic_read(&cur_cpu));
-  uint64_t st = xrt_get_timer();
+  uint64_t st = xrt_timer_get_clk();
   for (int i = 0; i < 10000; i++) {
     use_result_dummy += i;
   }
-  uint64_t et = xrt_get_timer();
+  uint64_t et = xrt_timer_get_clk();
   if (et - st <= 0) {
     printf("timer_test failed on cpu: %d\n", atomic_read(&cur_cpu));
     xrt_exit(1);

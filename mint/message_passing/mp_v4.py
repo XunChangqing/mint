@@ -21,6 +21,7 @@ logger = logging.getLogger('mp_v4')
 
 addr_space: AddrSpace = None
 nr_cpus: int = None
+armv7: bool = False
 
 rf = open('rand_proc.S', 'w')
 atexit.register(rf.close)
@@ -78,7 +79,7 @@ class MessagePassingP1(Action):
         self.executor_id = mp_rsc.p1
 
     def Body(self):
-        r0_r, r1_r, r2_r, r5_r = random.sample(v8.ALL_REGS, 4)
+        r0_r, r1_r, r2_r, r5_r = random.sample(v8.GPRS, 4)
         r0 = v8.reg_name(r0_r, True)
         r1 = v8.reg_name(r1_r, True)
         r2 = v8.reg_name(r2_r, True)
@@ -115,7 +116,13 @@ class MessagePassingP1(Action):
             v8.verbatim('// noise end')
 
             # STL R0, [R2] sends flag
-            v8.verbatim(f'str {r0}, [{r2}]')
+            if armv7:
+                v8.verbatim(f'dmb st')
+                v8.verbatim(f'str {r0}, [{r2}]')
+            else:
+                v8.verbatim(f'str {r0}, [{r2}]')
+                # TOFIX
+                # v8.verbatim(f'stlr {r0}, [{r2}]')
 
             # noise
             v8.verbatim(f'// noise2')
@@ -134,7 +141,7 @@ class MessagePassingP2(Action):
         self.executor_id = mp_rsc.p2
 
     def Body(self):
-        r0_r, r1_r, r2_r, r5_r = random.sample(v8.ALL_REGS, 4)
+        r0_r, r1_r, r2_r, r5_r = random.sample(v8.GPRS, 4)
         r0 = v8.reg_name(r0_r, True)
         r1 = v8.reg_name(r1_r, True)
         r2 = v8.reg_name(r2_r, True)
@@ -157,9 +164,17 @@ class MessagePassingP2(Action):
             # WATI_ACQ([R2] == 1)
             # use r0 as the tmp register, it has not to be reserved for noise sequences.
             v8.verbatim('1:')
-            v8.verbatim(f'ldr {r0}, [{r2}]')
+            if armv7:
+                v8.verbatim(f'ldr {r0}, [{r2}]')
+            else:
+                v8.verbatim(f'ldr {r0}, [{r2}]')
+                # TOFIX
+                # v8.verbatim(f'ldar {r0}, [{r2}]')
             v8.verbatim(f'cmp {r0}, #1')
             v8.verbatim(f'bne 1b')
+
+            if armv7:
+                v8.verbatim(f'dmb sy')
 
             # noise
             v8.verbatim(f'// noise1')

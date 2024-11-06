@@ -79,7 +79,7 @@ class MessagePassingP1(Action):
         self.executor_id = mp_rsc.p1
 
     def Body(self):
-        r0_r, r1_r, r2_r, r5_r = random.sample(v8.ALL_REGS, 4)
+        r0_r, r1_r, r2_r, r5_r = random.sample(v8.GPRS, 4)
         r0 = v8.reg_name(r0_r, True)
         r1 = v8.reg_name(r1_r, True)
         r2 = v8.reg_name(r2_r, True)
@@ -110,7 +110,7 @@ class MessagePassingP2(Action):
         self.executor_id = mp_rsc.p2
 
     def Body(self):
-        r0_r, r1_r, r2_r, r5_r = random.sample(v8.ALL_REGS, 4)
+        r0_r, r1_r, r2_r, r5_r = random.sample(v8.GPRS, 4)
         r0 = v8.reg_name(r0_r, True)
         r1 = v8.reg_name(r1_r, True)
         r2 = v8.reg_name(r2_r, True)

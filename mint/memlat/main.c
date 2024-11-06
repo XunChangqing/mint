@@ -34,7 +34,7 @@ void memlat_test() {
     HUNDRED;
   }
 
-  start_timer_cnt = xrt_get_timer();
+  start_timer_cnt = xrt_timer_get_clk();
 
   for (int i = 0; i < TEST_TIMES; ++i) {
     HUNDRED;
@@ -46,7 +46,7 @@ void memlat_test() {
 
   use_pointer((void *)p);
 
-  end_timer_cnt = xrt_get_timer();
+  end_timer_cnt = xrt_timer_get_clk();
 
   uint64_t cnt = end_timer_cnt - start_timer_cnt;
   printf("cycles: %lu\n", cnt);

@@ -9,23 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 import purslane
 from purslane.dsl import Do, Action, Sequence, Parallel, Schedule, Select, Run, TypeOverride
-from purslane.dsl import RandU8, RandU16, RandU32, RandU64, RandUInt, RandS8, RandS16, RandS32, RandS64, RandInt
 from purslane.addr_space import AddrSpace
-from purslane.addr_space import SMWrite8, SMWrite16, SMWrite32, SMWrite64, SMWriteBytes
-from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadBytes
-
-# DDI0487Fc_armv8_arm.pdf
-# K11.2.1 Message passing
-    # resolving weakly-ordered message passing by using Acquire and Release
-# K11.6.1
-    # Message passing
-# P1
-    # STR R5, [R1] R5-0x55555555555555
-    # STL R0, [R2]
-# P2
-    # WAIT_ACQ([R2] == 1)
-    # LDR R5, [R1]
-    # R5 == 0x5555555555555555 must be guaranteed
 
 # v1，定向激励
 # v2，场景随机，可以测试到不同处理核
@@ -33,7 +17,7 @@ from purslane.addr_space import SMRead8, SMRead16, SMRead32, SMRead64, SMReadByt
 # v4，指令噪音
 # v5，场景噪音
 
-addr_space = purslane.addr_space.AddrSpace()
+addr_space = AddrSpace()
 for mr in ivy_app_cfg.free_mem_ranges:
     addr_space.AddNode(mr.base, mr.size, mr.numa_id)
 nr_cpus = ivy_app_cfg.NR_CPUS
