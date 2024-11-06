@@ -1,5 +1,4 @@
-# author: zuoqian
-# Copyright 2023. All rights reserved.
+// Copyright 2024 zuoqian, zuoqian@qq.com
 
 // 启动要求
 // MMU关闭，D-cache关闭，I-cache关闭, EL=1，所有核都必须进入入口点

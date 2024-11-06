@@ -1,5 +1,5 @@
-// author : zuoqian
-// Copyright 2024. All rights reserved.
+// Copyright 2024 zuoqian, zuoqian@qq.com
+
 #pragma once
 
 #include <asm/sysreg.h>

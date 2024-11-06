@@ -1,5 +1,4 @@
-// author : zuoqian
-// Copyright 2023. All rights reserved.
+// Copyright 2024 zuoqian, zuoqian@qq.com
 
 #include "dummy_uart.h"
 

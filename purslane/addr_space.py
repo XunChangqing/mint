@@ -1,5 +1,4 @@
-# author: zuoqian
-# Copyright 2024. All rights reserved.
+#  Copyright 2024 zuoqian, zuoqian@qq.com
 
 import math
 import random
